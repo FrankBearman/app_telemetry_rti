@@ -35,6 +35,9 @@ pipeline.
 ## Load and retention behavior
 
 - The first run loads the latest 24 hours. It does not backfill the previous year.
+- If the existing `Requests` table predates this ingestion and has no `timestamp`
+  column, the notebook adds it. Existing rows receive null timestamps; only newly
+  ingested/re-read rows have event timestamps.
 - Later runs query from the latest stored timestamp minus a two-hour overlap. This
   allows for telemetry ingestion delay; rows are merged by telemetry `id` to avoid
   duplicates.
