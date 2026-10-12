@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "KQLQueryset",
+    "displayName": "app_telemetry_requests",
+    "description": "Recent request telemetry from the Eventhouse."
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "9c27570e-f775-489c-a226-b68a16e5ac5b"
+  }
+}

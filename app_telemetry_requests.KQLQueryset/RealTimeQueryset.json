@@ -1,0 +1,22 @@
+{
+  "queryset": {
+    "version": "1.0.0",
+    "dataSources": [
+      {
+        "id": "f3a37b0e-7d39-4c90-8bb3-0d48a40e3397",
+        "clusterUri": "",
+        "type": "Fabric",
+        "databaseItemId": "a4e69120-1111-89dd-4e8a-4b1f4f7c8b44",
+        "databaseItemName": "app_telemetry_eventhouse"
+      }
+    ],
+    "tabs": [
+      {
+        "id": "85bd51d0-fd8b-4659-9d53-caa58d43f6f3",
+        "title": "Requests - last 24 hours",
+        "dataSourceId": "f3a37b0e-7d39-4c90-8bb3-0d48a40e3397",
+        "content": "union\n(\n    Requests_dataflow_realtime\n    | extend IngestionPath = \"Dataflow\"\n),\n(\n    requestsPowerQueryRealTime\n    | extend IngestionPath = \"Power Query\"\n)\n| where timestamp >= ago(24h)\n| summarize\n    Requests = count(),\n    FailedRequests = countif(tolower(success) == \"false\"),\n    AverageDurationMs = round(avg(duration), 2)\n    by bin(timestamp, 5m), IngestionPath\n| order by timestamp asc\n"
+      }
+    ]
+  }
+}
