@@ -34,7 +34,7 @@ from pyspark.sql.window import Window
 
 
 APP_INSIGHTS_APP_ID = "00a8e086-bbec-4f92-a08f-14a05eb151f2"
-KEY_VAULT_URL = "https://REPLACE_WITH_KEY_VAULT_NAME.vault.azure.net/"
+KEY_VAULT_URL = "https://app-telem-kv.vault.azure.net/"
 API_KEY_SECRET_NAME = "appinsights-query-api-key"
 TABLE_NAME = "Requests"
 INITIAL_LOOKBACK_HOURS = 24
