@@ -88,7 +88,7 @@ request_schema = T.StructType([
     T.StructField("iKey", T.StringType(), True),
     T.StructField("sdkVersion", T.StringType(), True),
     T.StructField("itemId", T.StringType(), True),
-    T.StructField("itemCount", T.LongType(), True),
+    T.StructField("itemCount", T.IntegerType(), True),
     T.StructField("_ResourceId", T.StringType(), True),
 ])
 
@@ -97,7 +97,7 @@ for field in request_schema.fields:
     if field.name == "duration":
         projection.append("duration=todouble(duration)")
     elif field.name == "itemCount":
-        projection.append("itemCount=tolong(itemCount)")
+        projection.append("itemCount=toint(itemCount)")
     elif field.dataType == T.StringType():
         projection.append(f"{field.name}=tostring({field.name})")
     else:
@@ -130,7 +130,7 @@ def parse_cell(value, data_type):
         return str(value)
     if data_type == T.DoubleType():
         return float(value)
-    if data_type == T.LongType():
+    if data_type == T.IntegerType():
         return int(value)
     raise TypeError(f"Unsupported Spark type for Application Insights column: {data_type}")
 
@@ -168,6 +168,11 @@ def read_requests(start_utc, end_utc):
 
 
 table_exists = spark.catalog.tableExists(TABLE_NAME)
+if table_exists:
+    existing_columns = set(spark.table(TABLE_NAME).columns)
+    if "timestamp" not in existing_columns:
+        spark.sql(f"ALTER TABLE {TABLE_NAME} ADD COLUMNS (timestamp TIMESTAMP)")
+
 now_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
 if table_exists:
     latest_timestamp = (
