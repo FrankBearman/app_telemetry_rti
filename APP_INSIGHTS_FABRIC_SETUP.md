@@ -19,6 +19,10 @@ The KQL queryset remains the option for querying Application Insights live.
 6. Create a schedule on `app_telemetry_ingest_pipeline` for every 15 minutes. Ensure
    pipeline runs do not overlap.
 
+The pipeline references the notebook by its Fabric Git logical ID and uses the
+all-zero workspace ID so Fabric resolves the notebook in the workspace containing the
+pipeline.
+
 ## Load and retention behavior
 
 - The first run loads the latest 24 hours. It does not backfill the previous year.
