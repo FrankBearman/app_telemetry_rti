@@ -17,7 +17,7 @@ Application Insights live.
 3. Grant the identity used to run the Fabric notebook permission to read/get that
    specific secret. For Key Vault RBAC, assign **Key Vault Secrets User** at the
    narrowest practical scope; for access-policy vaults, grant **Get** on secrets.
-4. In `app_telemetry_ingest.Notebook/notebook-content.py`, replace
+4. In `fabric/app_telemetry_ingest.Notebook/notebook-content.py`, replace
    `REPLACE_WITH_KEY_VAULT_NAME` in `KEY_VAULT_URL` with the vault name, keeping the
    full URL form `https://<vault-name>.vault.azure.net/`. Fabric's
    `notebookutils.credentials.getSecret` expects the full vault URL, not just its name.
