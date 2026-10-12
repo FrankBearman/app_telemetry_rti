@@ -1,0 +1,41 @@
+CanvasApp:
+  Name: crf6e_apptelemcanvappweather_c88cd
+  AppVersion: 2026-10-12T12:34:41.0000000Z
+  Status: Ready
+  CreatedByClientVersion: 3.26093.11.0
+  MinClientVersion: 3.26093.11.0
+  Tags: '{"primaryDeviceWidth":"1366","primaryDeviceHeight":"768","supportsPortrait":"true","supportsLandscape":"true","primaryFormFactor":"Tablet","showStatusBar":"false","publisherVersion":"3.26093.11","minimumRequiredApiVersion":"2.2.0","hasComponent":"false","hasUnlockedComponent":"false","isUnifiedRootApp":"false","m365CopilotSettingValue":"0"}'
+  IsCdsUpgraded: 0
+  GalleryItemId:
+    '@xsi:nil': true
+    '@xmlns:xsi': http://www.w3.org/2001/XMLSchema-instance
+  BackgroundColor: RGBA(0,176,240,1)
+  DisplayName: app-telem-canvapp-weather
+  Description:
+    '@xsi:nil': true
+    '@xmlns:xsi': http://www.w3.org/2001/XMLSchema-instance
+  CommitMessage:
+    '@xsi:nil': true
+    '@xmlns:xsi': http://www.w3.org/2001/XMLSchema-instance
+  Publisher:
+    '@xsi:nil': true
+    '@xmlns:xsi': http://www.w3.org/2001/XMLSchema-instance
+  AuthorizationReferences: '[]'
+  ConnectionReferences: '{}'
+  DatabaseReferences: '{}'
+  AppComponents: '[]'
+  AppComponentDependencies: '[]'
+  CanConsumeAppPass: 1
+  CanvasAppType: 0
+  BypassConsent: 0
+  AdminControlBypassConsent: 0
+  EmbeddedApp:
+    '@xsi:nil': true
+    '@xmlns:xsi': http://www.w3.org/2001/XMLSchema-instance
+  IntroducedVersion: 1.0
+  CdsDependencies: '{"cdsdependencies":[]}'
+  IsCustomizable: 1
+  BackgroundImageUri: /canvasapps/crf6e_apptelemcanvappweather_c88cd/crf6e_apptelemcanvappweather_c88cd_BackgroundImageUri
+  DocumentUri: /canvasapps/crf6e_apptelemcanvappweather_c88cd/crf6e_apptelemcanvappweather_c88cd_DocumentUri.msapp
+  AdditionalUris:
+    AdditionalUri: /canvasapps/crf6e_apptelemcanvappweather_c88cd/crf6e_apptelemcanvappweather_c88cd_AdditionalUris0_identity.json
