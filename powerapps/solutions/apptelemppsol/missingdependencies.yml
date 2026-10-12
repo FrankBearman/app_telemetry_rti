@@ -1,0 +1,38 @@
+MissingDependencies:
+  MissingDependency:
+  - Required:
+      '@type': 61
+      '@schemaName': msdyn_/Images/AppModule_Default_Icon.png
+      '@displayName': msdyn_/Images/AppModule_Default_Icon.png
+      '@solution': AppModuleWebResources (2.5)
+      package:
+        '@appName': AppModule Web Resources Package
+        '@version': 2.5
+        '#text': AppModuleWebResources (2.5)
+    Dependent:
+      '@type': 80
+      '@schemaName': crf6e_apptelemppmodapp
+      '@displayName': app-telem-pp-modapp
+  - Required:
+      '@type': connectionreference
+      '@displayName': new_sharedmsnweather_956a6
+      '@solution': Active
+      '@id.connectionreferencelogicalname': new_sharedmsnweather_956a6
+    Dependent:
+      '@type': 29
+      '@displayName': app-telem-pp-weather-flow
+      '@id': '{9b96c80a-23c3-f111-aaaf-000d3a343600}'
+  - Required:
+      '@type': SettingDefinition
+      '@displayName': AppChannel
+      '@solution': msdyn_AppFrameworkInfraExtensions (1.0.0.20)
+      '@id.uniquename': AppChannel
+      package:
+        '@appName': PowerAppsAppFramework Package
+        '@version': 1.0.0.25
+        '#text': PowerAppsAppFramework_Anchor (1.0.0.25)
+    Dependent:
+      '@type': AppSetting
+      '@displayName': parentappmoduleid.uniquename=crf6e_apptelemppmodapp,settingdefinitionid.uniquename=AppChannel
+      '@id.parentappmoduleid.uniquename': crf6e_apptelemppmodapp
+      '@id.settingdefinitionid.uniquename': AppChannel
