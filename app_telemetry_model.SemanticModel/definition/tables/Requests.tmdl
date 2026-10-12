@@ -2,6 +2,16 @@ table Requests
 	lineageTag: b2a098d6-a51c-4e57-a6ed-089926dc2552
 	sourceLineageTag: [dbo].[Requests]
 
+	column timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 3e2b3479-a6c4-4cdf-925b-1ae0d67385f4
+		sourceLineageTag: timestamp
+		summarizeBy: none
+		sourceColumn: timestamp
+
+		annotation SummarizationSetBy = Automatic
+
 	column id
 		dataType: string
 		lineageTag: b018b9f2-a5ea-404c-84b7-27f790fdd00e
@@ -353,4 +363,3 @@ table Requests
 			entityName: Requests
 			schemaName: dbo
 			expressionSource: 'DirectLake - app_telemtry_lh_bronze'
-

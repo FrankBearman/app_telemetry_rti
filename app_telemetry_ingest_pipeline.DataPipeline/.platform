@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "DataPipeline",
+    "displayName": "app_telemetry_ingest_pipeline",
+    "description": "Runs the incremental Application Insights ingestion notebook."
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "fa3de952-d509-4b7a-bf36-4aa8b0af4ce3"
+  }
+}

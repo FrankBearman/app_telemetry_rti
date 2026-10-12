@@ -1,0 +1,22 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "name": "Ingest Application Insights requests",
+        "type": "TridentNotebook",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 2,
+          "retryIntervalInSeconds": 60,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "typeProperties": {
+          "notebookId": "08dfc417-44ae-4a9c-8225-e8501c1752ab",
+          "workspaceId": "e40c817a-488d-4c50-b65e-4020fa697795"
+        }
+      }
+    ]
+  }
+}

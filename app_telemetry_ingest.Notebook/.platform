@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "app_telemetry_ingest",
+    "description": "Incrementally copies Application Insights requests into the bronze Lakehouse."
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "08dfc417-44ae-4a9c-8225-e8501c1752ab"
+  }
+}
