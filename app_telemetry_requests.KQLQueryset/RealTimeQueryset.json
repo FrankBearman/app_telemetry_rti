@@ -6,16 +6,21 @@
         "id": "f3a37b0e-7d39-4c90-8bb3-0d48a40e3397",
         "clusterUri": "",
         "type": "Fabric",
-        "databaseItemId": "a4e69120-1111-89dd-4e8a-4b1f4f7c8b44",
-        "databaseItemName": "app_telemetry_eventhouse"
+        "databaseItemId": "a4e69120-1111-89dd-4e8a-4b1f4f7c8b44"
+      },
+      {
+        "id": "de271090-f2ae-4d44-be2e-b1178db7e9ac",
+        "clusterUri": "https://ade.applicationinsights.io/subscriptions/835c0954-8dd3-4099-8644-daff1323d1ec/resourcegroups/apv8_telemtry/providers/microsoft.insights/components/apv8appInsights",
+        "type": "AzureDataExplorer",
+        "databaseName": "apv8appInsights"
       }
     ],
     "tabs": [
       {
         "id": "85bd51d0-fd8b-4659-9d53-caa58d43f6f3",
+        "content": "requests\n| where timestamp >= ago(10000h)\n| project timestamp, name, url, success, resultCode, duration, operation_Name\n| order by timestamp desc",
         "title": "Requests - last 24 hours",
-        "dataSourceId": "f3a37b0e-7d39-4c90-8bb3-0d48a40e3397",
-        "content": "union\n(\n    Requests_dataflow_realtime\n    | extend IngestionPath = \"Dataflow\"\n),\n(\n    requestsPowerQueryRealTime\n    | extend IngestionPath = \"Power Query\"\n)\n| where timestamp >= ago(24h)\n| summarize\n    Requests = count(),\n    FailedRequests = countif(tolower(success) == \"false\"),\n    AverageDurationMs = round(avg(duration), 2)\n    by bin(timestamp, 5m), IngestionPath\n| order by timestamp asc\n"
+        "dataSourceId": "de271090-f2ae-4d44-be2e-b1178db7e9ac"
       }
     ]
   }
