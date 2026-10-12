@@ -36,12 +36,15 @@ from pyspark.sql.window import Window
 APP_INSIGHTS_APP_ID = "00a8e086-bbec-4f92-a08f-14a05eb151f2"
 KEY_VAULT_URL = "https://app-telem-kv.vault.azure.net/"
 API_KEY_SECRET_NAME = "appinsights-query-api-key"
+# Write into the existing Lakehouse table used by the Direct Lake model.
 TABLE_NAME = "Requests"
+# First-run history, overlap for late-arriving telemetry, and per-request API window size.
 INITIAL_LOOKBACK_HOURS = 24
 OVERLAP_MINUTES = 120
 RETENTION_DAYS = 365
 QUERY_WINDOW_HOURS = 6
 
+# Read the API key at runtime; never store the secret in notebook source or pipeline parameters.
 if "REPLACE_WITH_KEY_VAULT_NAME" in KEY_VAULT_URL:
     raise ValueError("Set KEY_VAULT_URL to the Key Vault URL containing the App Insights API key.")
 
@@ -92,6 +95,8 @@ request_schema = T.StructType([
     T.StructField("_ResourceId", T.StringType(), True),
 ])
 
+# Build a KQL projection that converts dynamic telemetry fields to Lakehouse-friendly
+# scalar values while keeping the column order aligned with the Spark schema above.
 projection = []
 for field in request_schema.fields:
     if field.name == "duration":
@@ -106,6 +111,7 @@ projection_sql = ",\n    ".join(projection)
 
 
 def query_window(start_utc, end_utc):
+    """Build a bounded requests query for one UTC time window."""
     start_literal = start_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     end_literal = end_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     return f"""
@@ -117,6 +123,7 @@ requests
 
 
 def parse_cell(value, data_type):
+    """Convert one API response value to the corresponding Spark row value."""
     if value is None:
         return None
     if data_type == T.TimestampType():
@@ -136,6 +143,7 @@ def parse_cell(value, data_type):
 
 
 def read_requests(start_utc, end_utc):
+    """Query Application Insights and validate/convert the tabular response."""
     response = requests.get(
         f"https://api.applicationinsights.io/v1/apps/{APP_INSIGHTS_APP_ID}/query",
         headers={"x-api-key": api_key, "Content-Type": "application/json"},
@@ -167,6 +175,8 @@ def read_requests(start_utc, end_utc):
     return rows
 
 
+# Ensure a pre-existing Requests table has the event-time column needed for the
+# incremental watermark. Existing rows keep null timestamps until reread from Insights.
 table_exists = spark.catalog.tableExists(TABLE_NAME)
 if table_exists:
     existing_columns = set(spark.table(TABLE_NAME).columns)
@@ -174,6 +184,8 @@ if table_exists:
         spark.sql(f"ALTER TABLE {TABLE_NAME} ADD COLUMNS (timestamp TIMESTAMP)")
 
 now_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+# Resume from the latest event timestamp, with an overlap to recapture late arrivals.
+# An empty or new table starts with a small initial lookback rather than a full backfill.
 if table_exists:
     latest_timestamp = (
         spark.table(TABLE_NAME)
@@ -193,6 +205,8 @@ if start_utc >= now_utc:
     raise RuntimeError("The ingestion start time is not earlier than the current query time.")
 
 all_rows = []
+# Split larger catch-up intervals into bounded queries. Retry only transient HTTP
+# failures; fail the notebook on permanent errors instead of silently losing a window.
 window_start = start_utc
 window_size = timedelta(hours=QUERY_WINDOW_HOURS)
 while window_start < now_utc:
@@ -220,6 +234,7 @@ if all_rows:
     if batch.filter(F.col("id").isNull()).limit(1).count():
         raise RuntimeError("Application Insights returned a request without an id; refusing to write it.")
 
+    # Keep the newest copy per telemetry ID, then merge so overlap reruns are idempotent.
     latest_per_id = Window.partitionBy("id").orderBy(F.col("timestamp").desc())
     batch = (
         batch.withColumn("_row_number", F.row_number().over(latest_per_id))
@@ -239,6 +254,7 @@ if all_rows:
     else:
         batch.write.format("delta").mode("overwrite").saveAsTable(TABLE_NAME)
 
+# Enforce the configured logical retention window after ingestion.
 cutoff = (now_utc - timedelta(days=RETENTION_DAYS)).replace(tzinfo=None)
 if spark.catalog.tableExists(TABLE_NAME):
     DeltaTable.forName(spark, TABLE_NAME).delete(F.col("timestamp") < F.lit(cutoff))
