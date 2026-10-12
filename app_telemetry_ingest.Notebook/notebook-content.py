@@ -34,7 +34,7 @@ from pyspark.sql.window import Window
 
 
 APP_INSIGHTS_APP_ID = "00a8e086-bbec-4f92-a08f-14a05eb151f2"
-KEY_VAULT_NAME = "REPLACE_WITH_KEY_VAULT_NAME"
+KEY_VAULT_URL = "https://REPLACE_WITH_KEY_VAULT_NAME.vault.azure.net/"
 API_KEY_SECRET_NAME = "appinsights-query-api-key"
 TABLE_NAME = "Requests"
 INITIAL_LOOKBACK_HOURS = 24
@@ -42,10 +42,10 @@ OVERLAP_MINUTES = 120
 RETENTION_DAYS = 365
 QUERY_WINDOW_HOURS = 6
 
-if KEY_VAULT_NAME == "REPLACE_WITH_KEY_VAULT_NAME":
-    raise ValueError("Set KEY_VAULT_NAME to the Key Vault containing the App Insights API key.")
+if "REPLACE_WITH_KEY_VAULT_NAME" in KEY_VAULT_URL:
+    raise ValueError("Set KEY_VAULT_URL to the Key Vault URL containing the App Insights API key.")
 
-api_key = notebookutils.credentials.getSecret(KEY_VAULT_NAME, API_KEY_SECRET_NAME)
+api_key = notebookutils.credentials.getSecret(KEY_VAULT_URL, API_KEY_SECRET_NAME)
 if not api_key:
     raise RuntimeError(f"Key Vault secret '{API_KEY_SECRET_NAME}' is empty.")
 

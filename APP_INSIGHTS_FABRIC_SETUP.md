@@ -9,15 +9,24 @@ The KQL queryset remains the option for querying Application Insights live.
 
 1. In Application Insights, create a read-only API key with permission to read telemetry.
    Do not use the instrumentation key from the connection string as an API key.
-2. Save the API key in Azure Key Vault as `appinsights-query-api-key`.
-3. Grant the identity that runs the Fabric notebook permission to get that Key Vault secret.
+2. Create or select an Azure Key Vault. Add a secret named
+   `appinsights-query-api-key` and use the read-only API key as its value.
+3. Grant the identity used to run the Fabric notebook permission to read/get that
+   specific secret. For Key Vault RBAC, assign **Key Vault Secrets User** at the
+   narrowest practical scope; for access-policy vaults, grant **Get** on secrets.
 4. In `app_telemetry_ingest.Notebook/notebook-content.py`, replace
-   `REPLACE_WITH_KEY_VAULT_NAME` with the Key Vault name. No key or other credential
-   should be committed to Git.
+   `REPLACE_WITH_KEY_VAULT_NAME` in `KEY_VAULT_URL` with the vault name, keeping the
+   full URL form `https://<vault-name>.vault.azure.net/`. Fabric's
+   `notebookutils.credentials.getSecret` expects the full vault URL, not just its name.
+   Never commit the API key or other credentials to Git.
 5. Sync the branch into Fabric. Run the notebook once manually and confirm that it
    creates the `Requests` Lakehouse table and completes successfully.
 6. Create a schedule on `app_telemetry_ingest_pipeline` for every 15 minutes. Ensure
    pipeline runs do not overlap.
+
+The notebook reads the Key Vault secret under the identity used for its run. Test
+secret access by running it manually first, then configure the pipeline's Notebook
+activity authentication to use an identity that has the same Key Vault permission.
 
 The pipeline references the notebook by its Fabric Git logical ID and uses the
 all-zero workspace ID so Fabric resolves the notebook in the workspace containing the
