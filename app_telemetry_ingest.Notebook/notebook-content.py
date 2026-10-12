@@ -38,6 +38,7 @@ KEY_VAULT_URL = "https://app-telem-kv.vault.azure.net/"
 API_KEY_SECRET_NAME = "appinsights-query-api-key"
 # Write into the existing Lakehouse table used by the Direct Lake model.
 TABLE_NAME = "Requests"
+CUSTOM_DIMENSIONS_TABLE_NAME = "RequestsCustomDimensions"
 # First-run history, overlap for late-arriving telemetry, and per-request API window size.
 INITIAL_LOOKBACK_HOURS = 24
 OVERLAP_MINUTES = 120
@@ -259,9 +260,140 @@ cutoff = (now_utc - timedelta(days=RETENTION_DAYS)).replace(tzinfo=None)
 if spark.catalog.tableExists(TABLE_NAME):
     DeltaTable.forName(spark, TABLE_NAME).delete(F.col("timestamp") < F.lit(cutoff))
 
+# Create a typed, one-row-per-request table for the custom-dimension keys already
+# selected by the custom-dimensions dataflow. The `id` column joins to Requests.
+if spark.catalog.tableExists(TABLE_NAME):
+    custom_dimensions_table_exists = spark.catalog.tableExists(
+        CUSTOM_DIMENSIONS_TABLE_NAME
+    )
+    spark.sql(f"""
+        CREATE TABLE IF NOT EXISTS {CUSTOM_DIMENSIONS_TABLE_NAME} (
+            id STRING,
+            timestamp TIMESTAMP,
+            organizationId STRING,
+            resourceId STRING,
+            environmentId STRING,
+            signalCategory STRING,
+            resourceProvider STRING,
+            TaskName STRING,
+            FlowDisplayName STRING,
+            RunId STRING,
+            OriginRunId STRING,
+            code STRING,
+            flowSequenceId STRING,
+            error STRING,
+            tags_flowDisplayName STRING,
+            tags_licenseContextConfigName STRING,
+            tags_environmentName STRING,
+            tags_logicAppName STRING,
+            tags_environmentWorkflowId STRING,
+            tags_xrmWorkflowId STRING,
+            tags_environmentFlowSuspensionReason STRING,
+            tags_sharingType STRING,
+            tags_state STRING,
+            tags_createdTime STRING,
+            tags_lastModifiedTime STRING,
+            tags_createdBy STRING,
+            tags_triggerType STRING,
+            tags_createdByUserId STRING
+        )
+        USING DELTA
+    """)
+
+    # Load all existing requests the first time. Later runs only refresh the same
+    # overlap window as the base table, keeping the flattened table idempotent.
+    if custom_dimensions_table_exists:
+        refresh_start = start_utc.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        source_filter = f"r.timestamp >= TIMESTAMP '{refresh_start}'"
+    else:
+        source_filter = "TRUE"
+
+    spark.sql(f"""
+        CREATE OR REPLACE TEMP VIEW _requests_custom_dimensions_source AS
+        WITH parsed_custom_dimensions AS (
+            SELECT
+                r.id,
+                r.timestamp,
+                r.customDimensions,
+                from_json(
+                    r.customDimensions,
+                    'STRUCT<Data: STRING, organizationId: STRING, resourceId: STRING,
+                      environmentId: STRING, signalCategory: STRING, resourceProvider: STRING>'
+                ) AS dimensions
+            FROM {TABLE_NAME} AS r
+            WHERE {source_filter}
+              AND r.id IS NOT NULL
+              AND r.customDimensions IS NOT NULL
+        ),
+        parsed_payload AS (
+            SELECT
+                id,
+                timestamp,
+                dimensions,
+                from_json(
+                    dimensions.Data,
+                    'STRUCT<TaskName: STRING, FlowDisplayName: STRING, RunId: STRING,
+                      OriginRunId: STRING, code: STRING,
+                      tags: STRUCT<flowDisplayName: STRING, licenseContextConfigName: STRING,
+                        environmentName: STRING, logicAppName: STRING,
+                        environmentWorkflowId: STRING, xrmWorkflowId: STRING,
+                        environmentFlowSuspensionReason: STRING, sharingType: STRING,
+                        state: STRING, createdTime: STRING, lastModifiedTime: STRING,
+                        createdBy: STRING, triggerType: STRING, createdByUserId: STRING>,
+                      flowSequenceId: STRING, error: STRING>'
+                ) AS payload
+            FROM parsed_custom_dimensions
+            WHERE dimensions IS NOT NULL
+        )
+        SELECT
+            id,
+            timestamp,
+            dimensions.organizationId AS organizationId,
+            dimensions.resourceId AS resourceId,
+            dimensions.environmentId AS environmentId,
+            dimensions.signalCategory AS signalCategory,
+            dimensions.resourceProvider AS resourceProvider,
+            payload.TaskName AS TaskName,
+            payload.FlowDisplayName AS FlowDisplayName,
+            payload.RunId AS RunId,
+            payload.OriginRunId AS OriginRunId,
+            payload.code AS code,
+            payload.flowSequenceId AS flowSequenceId,
+            payload.error AS error,
+            payload.tags.flowDisplayName AS tags_flowDisplayName,
+            payload.tags.licenseContextConfigName AS tags_licenseContextConfigName,
+            payload.tags.environmentName AS tags_environmentName,
+            payload.tags.logicAppName AS tags_logicAppName,
+            payload.tags.environmentWorkflowId AS tags_environmentWorkflowId,
+            payload.tags.xrmWorkflowId AS tags_xrmWorkflowId,
+            payload.tags.environmentFlowSuspensionReason AS tags_environmentFlowSuspensionReason,
+            payload.tags.sharingType AS tags_sharingType,
+            payload.tags.state AS tags_state,
+            payload.tags.createdTime AS tags_createdTime,
+            payload.tags.lastModifiedTime AS tags_lastModifiedTime,
+            payload.tags.createdBy AS tags_createdBy,
+            payload.tags.triggerType AS tags_triggerType,
+            payload.tags.createdByUserId AS tags_createdByUserId
+        FROM parsed_payload
+        WHERE payload IS NOT NULL
+    """)
+
+    spark.sql(f"""
+        MERGE INTO {CUSTOM_DIMENSIONS_TABLE_NAME} AS target
+        USING _requests_custom_dimensions_source AS source
+        ON target.id = source.id
+        WHEN MATCHED THEN UPDATE SET *
+        WHEN NOT MATCHED THEN INSERT *
+    """)
+
+    DeltaTable.forName(spark, CUSTOM_DIMENSIONS_TABLE_NAME).delete(
+        F.col("timestamp") < F.lit(cutoff)
+    )
+
 print(
     f"Application Insights ingestion finished. "
-    f"Rows returned: {len(all_rows)}; window start: {start_utc.isoformat()}."
+    f"Rows returned: {len(all_rows)}; window start: {start_utc.isoformat()}; "
+    f"custom dimensions table: {CUSTOM_DIMENSIONS_TABLE_NAME}."
 )
 
 # METADATA ********************

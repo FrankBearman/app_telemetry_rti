@@ -2,8 +2,11 @@
 
 The `app_telemetry_ingest.Notebook` item incrementally copies the Application Insights
 `requests` table into the existing `app_telemtry_lh_bronze` Lakehouse table named
-`Requests`. The existing Direct Lake semantic model can then analyze the copied rows.
-The KQL queryset remains the option for querying Application Insights live.
+`Requests`. It also creates/updates `RequestsCustomDimensions`, a flattened table
+containing the custom-dimension fields selected by the existing custom-dimensions
+dataflow. Join it to `Requests` on `id`. The existing Direct Lake semantic model can
+then analyze the copied rows. The KQL queryset remains the option for querying
+Application Insights live.
 
 ## One-time setup
 
@@ -43,6 +46,29 @@ pipeline.
   duplicates.
 - Data older than 365 days is deleted from the current Delta table at the end of each
   run. Physical removal of obsolete Delta files is governed by Delta `VACUUM` retention.
+- `RequestsCustomDimensions` includes the top-level organization/resource/environment
+  fields, the selected `Data` fields, and selected nested `tags` fields from
+  `dataflow_requests_customdim`. Missing custom-dimension values remain null. It is
+  keyed by the same request `id` as `Requests`.
+
+Example SQL Analytics Endpoint join:
+
+```sql
+SELECT
+    r.timestamp,
+    r.name,
+    r.success,
+    d.organizationId,
+    d.environmentId,
+    d.TaskName,
+    d.FlowDisplayName,
+    d.RunId,
+    d.tags_environmentName,
+    d.tags_state
+FROM dbo.Requests AS r
+LEFT JOIN dbo.RequestsCustomDimensions AS d
+    ON r.id = d.id;
+```
 - Each query request covers at most six hours to keep API responses bounded. If the
   Application Insights API rejects a query, the notebook fails visibly; review the
   run output and adjust the window or backfill strategy rather than silently dropping
