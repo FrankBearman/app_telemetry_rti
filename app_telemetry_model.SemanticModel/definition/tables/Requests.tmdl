@@ -1,0 +1,356 @@
+table Requests
+	lineageTag: b2a098d6-a51c-4e57-a6ed-089926dc2552
+	sourceLineageTag: [dbo].[Requests]
+
+	column id
+		dataType: string
+		lineageTag: b018b9f2-a5ea-404c-84b7-27f790fdd00e
+		sourceLineageTag: id
+		summarizeBy: none
+		sourceColumn: id
+
+		annotation SummarizationSetBy = Automatic
+
+	column source
+		dataType: string
+		lineageTag: 7a8f373c-07dd-400e-8138-b8f3d202a50d
+		sourceLineageTag: source
+		summarizeBy: none
+		sourceColumn: source
+
+		annotation SummarizationSetBy = Automatic
+
+	column name
+		dataType: string
+		lineageTag: 6a61fe1b-f027-42fb-8098-d1200ea1428e
+		sourceLineageTag: name
+		summarizeBy: none
+		sourceColumn: name
+
+		annotation SummarizationSetBy = Automatic
+
+	column url
+		dataType: string
+		lineageTag: 6266ed81-05ce-46d1-9722-cc15c39dab82
+		sourceLineageTag: url
+		summarizeBy: none
+		sourceColumn: url
+
+		annotation SummarizationSetBy = Automatic
+
+	column success
+		dataType: string
+		lineageTag: f805a037-3d30-4731-9cc1-fb1937d32a33
+		sourceLineageTag: success
+		summarizeBy: none
+		sourceColumn: success
+
+		annotation SummarizationSetBy = Automatic
+
+	column resultCode
+		dataType: string
+		lineageTag: 2b3182e2-1591-4c9e-be1b-3e396be33dda
+		sourceLineageTag: resultCode
+		summarizeBy: none
+		sourceColumn: resultCode
+
+		annotation SummarizationSetBy = Automatic
+
+	column duration
+		dataType: double
+		lineageTag: 0548162b-f8a5-44ea-987b-c5460f3007cc
+		sourceLineageTag: duration
+		summarizeBy: sum
+		sourceColumn: duration
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column performanceBucket
+		dataType: string
+		lineageTag: e30e6a83-d826-4ace-b9af-a4bdd2839e31
+		sourceLineageTag: performanceBucket
+		summarizeBy: none
+		sourceColumn: performanceBucket
+
+		annotation SummarizationSetBy = Automatic
+
+	column itemType
+		dataType: string
+		lineageTag: 95fc057c-346f-4587-8aac-50935ec2d3fc
+		sourceLineageTag: itemType
+		summarizeBy: none
+		sourceColumn: itemType
+
+		annotation SummarizationSetBy = Automatic
+
+	column customDimensions
+		dataType: string
+		lineageTag: f39a703f-fe3a-486d-ac87-edaad02f0b56
+		sourceLineageTag: customDimensions
+		summarizeBy: none
+		sourceColumn: customDimensions
+
+		annotation SummarizationSetBy = Automatic
+
+	column customMeasurements
+		dataType: string
+		lineageTag: fb52f421-73ef-4886-b21e-b121fed3f801
+		sourceLineageTag: customMeasurements
+		summarizeBy: none
+		sourceColumn: customMeasurements
+
+		annotation SummarizationSetBy = Automatic
+
+	column operation_Name
+		dataType: string
+		lineageTag: 73abd7a8-ee4d-45b5-8fbf-5a2253f3f5c5
+		sourceLineageTag: operation_Name
+		summarizeBy: none
+		sourceColumn: operation_Name
+
+		annotation SummarizationSetBy = Automatic
+
+	column operation_Id
+		dataType: string
+		lineageTag: 35069938-72fd-4061-8994-ed334507182b
+		sourceLineageTag: operation_Id
+		summarizeBy: none
+		sourceColumn: operation_Id
+
+		annotation SummarizationSetBy = Automatic
+
+	column operation_ParentId
+		dataType: string
+		lineageTag: 07aa374e-26df-45a0-9591-10559cf1baf5
+		sourceLineageTag: operation_ParentId
+		summarizeBy: none
+		sourceColumn: operation_ParentId
+
+		annotation SummarizationSetBy = Automatic
+
+	column operation_SyntheticSource
+		dataType: string
+		lineageTag: 8cd0f012-76ea-4ce7-b0b4-4c1e46814725
+		sourceLineageTag: operation_SyntheticSource
+		summarizeBy: none
+		sourceColumn: operation_SyntheticSource
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_Id
+		dataType: string
+		lineageTag: 43fb44cf-8569-47a5-9aec-8adb7a524599
+		sourceLineageTag: session_Id
+		summarizeBy: none
+		sourceColumn: session_Id
+
+		annotation SummarizationSetBy = Automatic
+
+	column user_Id
+		dataType: string
+		lineageTag: 35c1aeda-c03e-4c61-9c45-74a459583276
+		sourceLineageTag: user_Id
+		summarizeBy: none
+		sourceColumn: user_Id
+
+		annotation SummarizationSetBy = Automatic
+
+	column user_AuthenticatedId
+		dataType: string
+		lineageTag: 4ee070b1-a9ed-42d3-8506-f7054653f4fc
+		sourceLineageTag: user_AuthenticatedId
+		summarizeBy: none
+		sourceColumn: user_AuthenticatedId
+
+		annotation SummarizationSetBy = Automatic
+
+	column user_AccountId
+		dataType: string
+		lineageTag: 8cf36971-783e-4123-a253-f0409b1091b9
+		sourceLineageTag: user_AccountId
+		summarizeBy: none
+		sourceColumn: user_AccountId
+
+		annotation SummarizationSetBy = Automatic
+
+	column application_Version
+		dataType: string
+		lineageTag: b2a46300-9f8c-4ecc-8689-17f4333bbb84
+		sourceLineageTag: application_Version
+		summarizeBy: none
+		sourceColumn: application_Version
+
+		annotation SummarizationSetBy = Automatic
+
+	column client_Type
+		dataType: string
+		lineageTag: e792d373-0b81-484c-a782-a8aaeca23bca
+		sourceLineageTag: client_Type
+		summarizeBy: none
+		sourceColumn: client_Type
+
+		annotation SummarizationSetBy = Automatic
+
+	column client_Model
+		dataType: string
+		lineageTag: c103430a-2c3e-41e8-9856-d2d0cc2cdec2
+		sourceLineageTag: client_Model
+		summarizeBy: none
+		sourceColumn: client_Model
+
+		annotation SummarizationSetBy = Automatic
+
+	column client_OS
+		dataType: string
+		lineageTag: 84366ceb-e48c-4a82-a46c-6e17e28d51e2
+		sourceLineageTag: client_OS
+		summarizeBy: none
+		sourceColumn: client_OS
+
+		annotation SummarizationSetBy = Automatic
+
+	column client_IP
+		dataType: string
+		lineageTag: d4e17d7e-e8ea-44d6-82ef-1f3ba00959a7
+		sourceLineageTag: client_IP
+		summarizeBy: none
+		sourceColumn: client_IP
+
+		annotation SummarizationSetBy = Automatic
+
+	column client_City
+		dataType: string
+		lineageTag: 80c054f4-f5a0-42cb-932a-ddce8336f655
+		sourceLineageTag: client_City
+		summarizeBy: none
+		sourceColumn: client_City
+
+		annotation SummarizationSetBy = Automatic
+
+	column client_StateOrProvince
+		dataType: string
+		lineageTag: 0fc4bdb3-fdaa-47fb-8e36-0faa233b42f5
+		sourceLineageTag: client_StateOrProvince
+		summarizeBy: none
+		sourceColumn: client_StateOrProvince
+
+		annotation SummarizationSetBy = Automatic
+
+	column client_CountryOrRegion
+		dataType: string
+		lineageTag: 2a075e5c-859f-4ad4-b52c-4f92faf92182
+		sourceLineageTag: client_CountryOrRegion
+		summarizeBy: none
+		sourceColumn: client_CountryOrRegion
+
+		annotation SummarizationSetBy = Automatic
+
+	column client_Browser
+		dataType: string
+		lineageTag: c01d95fe-9f55-49eb-8bcf-a8742b277c67
+		sourceLineageTag: client_Browser
+		summarizeBy: none
+		sourceColumn: client_Browser
+
+		annotation SummarizationSetBy = Automatic
+
+	column cloud_RoleName
+		dataType: string
+		lineageTag: 6ea6766b-3297-4a1f-ac43-25d4f7bab8c1
+		sourceLineageTag: cloud_RoleName
+		summarizeBy: none
+		sourceColumn: cloud_RoleName
+
+		annotation SummarizationSetBy = Automatic
+
+	column cloud_RoleInstance
+		dataType: string
+		lineageTag: 46f5c5f0-a58e-4428-8831-4d321ed9c211
+		sourceLineageTag: cloud_RoleInstance
+		summarizeBy: none
+		sourceColumn: cloud_RoleInstance
+
+		annotation SummarizationSetBy = Automatic
+
+	column links
+		dataType: string
+		lineageTag: 8f08590c-ea3d-49e2-b55c-3fb01ef42916
+		sourceLineageTag: links
+		summarizeBy: none
+		sourceColumn: links
+
+		annotation SummarizationSetBy = Automatic
+
+	column appId
+		dataType: string
+		lineageTag: 1e774f23-355f-4597-9658-cde7064c1ce0
+		sourceLineageTag: appId
+		summarizeBy: none
+		sourceColumn: appId
+
+		annotation SummarizationSetBy = Automatic
+
+	column appName
+		dataType: string
+		lineageTag: 1cfdbe37-aad4-4b75-bfb9-5b09383e08e8
+		sourceLineageTag: appName
+		summarizeBy: none
+		sourceColumn: appName
+
+		annotation SummarizationSetBy = Automatic
+
+	column iKey
+		dataType: string
+		lineageTag: 90215026-aba2-4011-8f91-8c67d1f9bcef
+		sourceLineageTag: iKey
+		summarizeBy: none
+		sourceColumn: iKey
+
+		annotation SummarizationSetBy = Automatic
+
+	column sdkVersion
+		dataType: string
+		lineageTag: a8326c6b-4722-467c-ab50-313cfc594107
+		sourceLineageTag: sdkVersion
+		summarizeBy: none
+		sourceColumn: sdkVersion
+
+		annotation SummarizationSetBy = Automatic
+
+	column itemId
+		dataType: string
+		lineageTag: 3eec9f9e-73c3-413e-8290-6d4b495de8fb
+		sourceLineageTag: itemId
+		summarizeBy: none
+		sourceColumn: itemId
+
+		annotation SummarizationSetBy = Automatic
+
+	column itemCount
+		dataType: int64
+		formatString: 0
+		lineageTag: 9bc3978a-dad3-40e6-90e7-b554a69e76f3
+		sourceLineageTag: itemCount
+		summarizeBy: sum
+		sourceColumn: itemCount
+
+		annotation SummarizationSetBy = Automatic
+
+	column _ResourceId
+		dataType: string
+		lineageTag: bce702e1-50d5-4c7f-b03e-cef408f34aa0
+		sourceLineageTag: _ResourceId
+		summarizeBy: none
+		sourceColumn: _ResourceId
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Requests = entity
+		mode: directLake
+		source
+			entityName: Requests
+			schemaName: dbo
+			expressionSource: 'DirectLake - app_telemtry_lh_bronze'
+

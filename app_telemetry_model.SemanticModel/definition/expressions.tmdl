@@ -1,0 +1,9 @@
+expression 'DirectLake - app_telemtry_lh_bronze' =
+		let
+		    Source = AzureStorage.DataLake("https://onelake.dfs.fabric.microsoft.com/e40c817a-488d-4c50-b65e-4020fa697795/e8d8f813-dff6-4223-8857-e2ccdf0c2381", [HierarchicalNavigation=true])
+		in
+		    Source
+	lineageTag: b6727cf9-1998-4f43-aec7-9215a05ea05b
+
+	annotation PBI_IncludeFutureArtifacts = False
+

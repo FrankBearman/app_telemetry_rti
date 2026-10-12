@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Lakehouse",
+    "displayName": "app_telemtry_lh_bronze"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "df0c2381-e2cc-8857-4223-dff6e8d8f813"
+  }
+}

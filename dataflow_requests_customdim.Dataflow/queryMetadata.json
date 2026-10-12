@@ -1,0 +1,34 @@
+{
+  "formatVersion": "202502",
+  "computeEngineSettings": {
+    "allowModernEvaluationEngine": true
+  },
+  "name": "Dataflow 1",
+  "queryGroups": [],
+  "documentLocale": "en-US",
+  "queriesMetadata": {
+    "requests_custom_dim": {
+      "queryId": "58258c6d-27ad-49bf-a9d1-40835fd3ddb5",
+      "queryName": "requests_custom_dim",
+      "loadEnabled": false
+    },
+    "requests_custom_dim_DataDestination": {
+      "queryId": "16efa37c-d333-4295-9d26-a3db8cad35f3",
+      "queryName": "requests_custom_dim_DataDestination",
+      "isHidden": true,
+      "loadEnabled": false
+    }
+  },
+  "connections": [
+    {
+      "path": "https://api.applicationinsights.io/v1/apps/00a8e086-bbec-4f92-a08f-14a05eb151f2/query",
+      "kind": "Web",
+      "connectionId": "{\"ClusterId\":\"a9510c79-ba46-4e45-8b6d-059813983db4\",\"DatasourceId\":\"815f63ba-18cc-41df-80d3-eabdb1f8e6f6\"}"
+    },
+    {
+      "path": "Lakehouse",
+      "kind": "Lakehouse",
+      "connectionId": "{\"ClusterId\":\"a9510c79-ba46-4e45-8b6d-059813983db4\",\"DatasourceId\":\"bc501526-3b55-4ac9-8196-b90e6eff5369\"}"
+    }
+  ]
+}

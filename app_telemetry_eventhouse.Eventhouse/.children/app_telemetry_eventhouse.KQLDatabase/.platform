@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "KQLDatabase",
+    "displayName": "app_telemetry_eventhouse"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "a4e69120-1111-89dd-4e8a-4b1f4f7c8b44"
+  }
+}
