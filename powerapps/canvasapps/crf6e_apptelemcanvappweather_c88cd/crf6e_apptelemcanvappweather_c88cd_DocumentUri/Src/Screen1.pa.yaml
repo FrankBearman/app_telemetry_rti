@@ -10,3 +10,56 @@ Screens:
   Screen1:
     Properties:
       LoadingSpinnerColor: =RGBA(56, 96, 178, 1)
+    Children:
+      - Button1:
+          Control: Classic/Button@2.2.0
+          Properties:
+            BorderColor: =ColorFade(Self.Fill, -15%)
+            Color: =RGBA(255, 255, 255, 1)
+            DisabledBorderColor: =RGBA(166, 166, 166, 1)
+            Fill: =RGBA(56, 96, 178, 1)
+            Font: =Font.'Open Sans'
+            HoverBorderColor: =ColorFade(Self.BorderColor, 20%)
+            HoverColor: =RGBA(255, 255, 255, 1)
+            HoverFill: =ColorFade(RGBA(56, 96, 178, 1), -20%)
+            OnSelect: |+
+              =Set(varWeatherFlowRunId, Text(GUID()));
+
+              Trace(
+                  "weather-flow.started",
+                  TraceSeverity.Information,
+                  {
+                      clientRunId: varWeatherFlowRunId,
+                      flowName: "app-telem-pp-flow-weather"
+                  }
+              );
+
+              IfError(
+                  'app-telem-pp-flow-weather'.Run(),
+                  Trace(
+                      "weather-flow.failed",
+                      TraceSeverity.Error,
+                      {
+                          clientRunId: varWeatherFlowRunId,
+                          flowName: "app-telem-pp-flow-weather"
+                      }
+                  );
+                  Notify(
+                      "Weather flow failed. Check the flow run and app telemetry.",
+                      NotificationType.Error
+                  ),
+                  Trace(
+                      "weather-flow.succeeded",
+                      TraceSeverity.Information,
+                      {
+                          clientRunId: varWeatherFlowRunId,
+                          flowName: "app-telem-pp-flow-weather"
+                      }
+                  );
+                  Notify("Weather flow completed.", NotificationType.Success)
+              )
+            PressedBorderColor: =Self.Fill
+            PressedColor: =Self.Fill
+            PressedFill: =Self.Color
+            X: =40
+            Y: =40

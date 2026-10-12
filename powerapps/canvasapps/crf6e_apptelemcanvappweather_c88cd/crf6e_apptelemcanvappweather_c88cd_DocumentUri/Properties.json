@@ -3,7 +3,7 @@
   "Name": "app-telem-canvapp-weather",
   "Id": "d6107939-c664-44b9-a48c-a9f0cb26c767",
   "FileID": "d6107939-c664-44b9-a48c-a9f0cb26c767",
-  "LocalConnectionReferences": "{}",
+  "LocalConnectionReferences": "{\"62aa82e1-2d7f-4450-a745-89263548e420\":{\"id\":\"62aa82e1-2d7f-4450-a745-89263548e420\",\"connectionInstanceId\":\"/providers/Microsoft.PowerApps/apis/shared_logicflows/connections/1AD59D5B7EBA89E7695B8F84D51E6089-D2530CDBDE008090\",\"dataSources\":[\"ap-telem-pp-flow-weather\"],\"datasets\":{},\"dependencies\":{\"shared_msnweather\":\"50574e79-b158-4e3c-b0c9-427af4f51fdd\",\"shared_commondataserviceforapps\":\"14d5ec0c-c98a-41e7-8d04-78b05ef5b246\"},\"dependents\":[],\"connectionRef\":{\"id\":\"/providers/microsoft.powerapps/apis/shared_logicflows\",\"displayName\":\"Logic flows\",\"iconUri\":\"https://static.powerapps.com/resource/ppcr/releases/v1.0.1827/1.0.1827.4908/logicflows/icon.png\",\"parameterHints\":{\"workflowName\":{\"value\":\"1ad59d5b-7eba-89e7-695b-8f84d51e6089\"},\"workflowEntityId\":{\"value\":\"7b7a9113-45c6-f111-aaaf-000d3a343828\"},\"workflowDisplayName\":{\"value\":\"ap-telem-pp-flow-weather\"},\"50574e79-b158-4e3c-b0c9-427af4f51fdd\":{\"value\":\"shared_msnweather\"},\"14d5ec0c-c98a-41e7-8d04-78b05ef5b246\":{\"value\":\"shared_commondataserviceforapps\"}},\"parameterHintsV2\":{\"workflowName\":{\"value\":\"1ad59d5b-7eba-89e7-695b-8f84d51e6089\"},\"workflowEntityId\":{\"value\":\"7b7a9113-45c6-f111-aaaf-000d3a343828\"},\"workflowDisplayName\":{\"value\":\"ap-telem-pp-flow-weather\"},\"shared_msnweather\":{\"value\":\"50574e79-b158-4e3c-b0c9-427af4f51fdd\"},\"shared_commondataserviceforapps\":{\"value\":\"14d5ec0c-c98a-41e7-8d04-78b05ef5b246\"}}}},\"50574e79-b158-4e3c-b0c9-427af4f51fdd\":{\"id\":\"50574e79-b158-4e3c-b0c9-427af4f51fdd\",\"connectionInstanceId\":\"/providers/microsoft.powerapps/apis/shared_msnweather/connections/shared-msnweather-a0e5b415-d2e3-42c9-b0d9-4dc9c60dda29\",\"dataSources\":[],\"datasets\":{},\"dependencies\":{},\"dependents\":[\"62aa82e1-2d7f-4450-a745-89263548e420\"],\"connectionRef\":{\"id\":\"/providers/microsoft.powerapps/apis/shared_msnweather\",\"displayName\":\"MSN Weather\",\"iconUri\":\"https://static.powerapps.com/resource/ppcr/releases/v1.0.1827/1.0.1827.4902/msnweather/icon.png\"}},\"14d5ec0c-c98a-41e7-8d04-78b05ef5b246\":{\"id\":\"14d5ec0c-c98a-41e7-8d04-78b05ef5b246\",\"connectionInstanceId\":\"/providers/microsoft.powerapps/apis/shared_commondataserviceforapps/connections/shared-commondataser-ba0e9e97-a952-4648-8942-2e988e71a1ce\",\"dataSources\":[],\"datasets\":{},\"dependencies\":{},\"dependents\":[\"62aa82e1-2d7f-4450-a745-89263548e420\"],\"connectionRef\":{\"id\":\"/providers/microsoft.powerapps/apis/shared_commondataserviceforapps\",\"displayName\":\"Microsoft Dataverse\",\"authenticationType\":\"Oauth\",\"iconUri\":\"https://static.powerapps.com/resource/ppcr/releases/v1.0.1831/1.0.1831.5064/commondataserviceforapps/icon.png\"}}}",
   "LocalDatabaseReferences": "",
   "LibraryDependencies": "[]",
   "AppPreviewFlagsMap": {
@@ -104,14 +104,19 @@
   "DocumentAppType": "DesktopOrTablet",
   "DocumentType": "App",
   "AppCreationSource": "AppFromScratch",
-  "AppDescription": "",
-  "ManualOfflineProfileId": null,
+  "AppDescription": "Introduce the upcoming app-telem-canvapp-weather solution, designed to deliver weather-related features. Stay informed about its development as it aims to provide timely weather insights and enhance decision-making for users.",
+  "ManualOfflineProfileId": "",
   "DefaultConnectedDataSourceMaxGetRowsCount": 500,
   "ContainsThirdPartyPcfControls": false,
   "ParserErrorCount": 0,
-  "BindingErrorCount": 0,
-  "ConnectionString": "",
+  "BindingErrorCount": 1,
+  "ConnectionString": "InstrumentationKey=45d45d60-2e68-4af5-ab93-c057aed89114;IngestionEndpoint=https://eastus-8.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus.livediagnostics.monitor.azure.com/;ApplicationId=00a8e086-bbec-4f92-a08f-14a05eb151f2",
+  "InstrumentationKey": "45d45d60-2e68-4af5-ab93-c057aed89114",
   "EnableInstrumentation": false,
-  "ControlCount": {},
-  "AnalysisLoadTime": 0.0999508
+  "ControlCount": {
+    "screen": 1,
+    "button": 1
+  },
+  "DeserializationLoadTime": 0.2682608,
+  "AnalysisLoadTime": 0.1512425
 }
