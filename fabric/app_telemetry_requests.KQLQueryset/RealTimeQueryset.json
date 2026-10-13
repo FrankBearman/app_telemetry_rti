@@ -21,6 +21,30 @@
         "content": "requests\n| where timestamp >= ago(10000h)\n| project timestamp, name, url, success, resultCode, duration, operation_Name\n| order by timestamp desc",
         "title": "Requests - last 24 hours",
         "dataSourceId": "de271090-f2ae-4d44-be2e-b1178db7e9ac"
+      },
+      {
+        "id": "aef2dad8-a0dd-4b1d-9cf5-612421623453",
+        "content": "traces\n| where timestamp > ago(24h)\n| extend\n    clientRunId = tostring(customDimensions[\"clientRunId\"]),\n    flowName = tostring(customDimensions[\"flowName\"])\n| project timestamp, message, severityLevel, clientRunId, flowName, customDimensions\n| order by timestamp desc",
+        "title": "",
+        "dataSourceId": "de271090-f2ae-4d44-be2e-b1178db7e9ac"
+      },
+      {
+        "id": "4b20d624-b526-4ea7-ba95-705ff97c89bb",
+        "content": "requests\n|project name, itemType, timestamp, url, id, operation_Name, success, duration\n| where timestamp > ago(24h) //and isempty(url)\n| where operation_Name has \"POST\"\n| where url has 'crf6e_apptelemweathers'\n| where success == true\n| order by timestamp desc",
+        "title": "httpPosts_weather",
+        "dataSourceId": "de271090-f2ae-4d44-be2e-b1178db7e9ac"
+      },
+      {
+        "id": "7852de7f-6067-4a8c-b514-a8c7b29118f8",
+        "content": "let traceEvents = traces\n    | where timestamp > ago(24h)\n    | where message startswith \"weather-flow.\"\n    | extend clientRunId = tostring(customDimensions[\"clientRunId\"]),\n             flowName    = tostring(customDimensions[\"flowName\"])\n    | where isnotempty(clientRunId);\nlet started = traceEvents\n    | where message == \"weather-flow.started\"\n    | project clientRunId, flowName, startTime = timestamp, session_Id, user_Id;\nlet finished = traceEvents\n    | where message in (\"weather-flow.succeeded\", \"weather-flow.failed\")\n    | project clientRunId, endTime = timestamp, outcome = message, severityLevel;\nstarted\n| join kind=leftouter finished on clientRunId\n| extend durationMs = datetime_diff(\"millisecond\", endTime, startTime)\n| project clientRunId, flowName, startTime, endTime, durationMs, outcome, severityLevel, session_Id, user_Id\n| order by startTime desc",
+        "title": "customTraceDuration",
+        "dataSourceId": "de271090-f2ae-4d44-be2e-b1178db7e9ac"
+      },
+      {
+        "id": "4d216655-e587-4d3a-b648-a92b9fd363b7",
+        "content": "let startedView = \ntraces\n| extend clientRunId = tostring(customDimensions[\"clientRunId\"]), appName = tostring(customDimensions[\"ms-appName\"]), appid = tostring(customDimensions[\"ms-appId\"])\n| where timestamp > ago(24h)\n| where message has \"started\"\n| where message has \"weather-flow\"\n| project timestamp, message, severityLevel, clientRunId, startTime = timestamp, appName, appid;\nlet endedView = \ntraces\n| extend clientRunId = tostring(customDimensions[\"clientRunId\"]), appName = tostring(customDimensions[\"ms-appName\"]), appid = tostring(customDimensions[\"ms-appId\"])\n| where timestamp > ago(24h)\n| where message has \"ended\"\n| where message has \"weather-flow\"\n| project timestamp, message, severityLevel, clientRunId, endTime = timestamp, appName, appid;\nstartedView\n| join kind=leftouter endedView on clientRunId\n| extend durationMs = datetime_diff(\"millisecond\", endTime, startTime)\n| project clientRunId, durationMs, severityLevel, startTime, endTime, appid, appName",
+        "title": "TraceDuration",
+        "dataSourceId": "de271090-f2ae-4d44-be2e-b1178db7e9ac"
       }
     ]
   }
