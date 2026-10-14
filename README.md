@@ -17,3 +17,8 @@ When syncing the Fabric component with a Fabric workspace, configure the Git
 folder mapping to use `fabric/`. See
 [`azure/APP_INSIGHTS_FABRIC_SETUP.md`](./azure/APP_INSIGHTS_FABRIC_SETUP.md)
 for the current Application Insights ingestion setup.
+
+## Deployment
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for per-customer, manual and Azure DevOps deployment (scripts/, customers/, zure-pipelines.yml).
+

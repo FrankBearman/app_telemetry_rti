@@ -1,0 +1,48 @@
+{
+  "customerCode": "contoso",
+  "tenantId": "00000000-0000-0000-0000-000000000000",
+  "subscriptionId": "00000000-0000-0000-0000-000000000000",
+  "resourceGroup": "rg-apptelem-contoso",
+  "location": "uksouth",
+
+  "azure": {
+    "namePrefix": "apptelcon",
+    "retentionInDays": 90,
+    "enablePurgeProtection": true,
+    "useExistingAppInsights": false,
+    "existingAppInsightsName": "",
+    "useExistingKeyVault": false,
+    "existingKeyVaultName": "",
+    "secretReaderPrincipalIds": [],
+    "secretOfficerPrincipalIds": []
+  },
+
+  "fabric": {
+    "deploy": true,
+    "workspaceId": "00000000-0000-0000-0000-000000000000",
+    "itemTypes": [
+      "Lakehouse",
+      "Notebook",
+      "DataPipeline",
+      "SemanticModel",
+      "Eventhouse",
+      "KQLDatabase",
+      "KQLQueryset"
+    ]
+  },
+
+  "powerPlatform": {
+    "deploy": true,
+    "environmentUrl": "https://contoso.crm11.dynamics.com",
+    "applicationId": "00000000-0000-0000-0000-000000000000",
+    "solutionName": "apptelemppsol",
+    "connectionReferences": [
+      {
+        "logicalName": "crf6e_sharedcommondataserviceforapps_d81c3",
+        "connectorId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+        "connectionId": "REPLACE_WITH_CONNECTION_ID"
+      }
+    ],
+    "environmentVariables": []
+  }
+}

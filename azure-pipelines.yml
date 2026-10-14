@@ -1,0 +1,124 @@
+# Deploys the app telemetry solution to a customer tenant: Azure -> Fabric -> Power Platform.
+# Every step calls the scripts in scripts/, so the same deployment can be run manually
+# (scripts/Deploy-All.ps1) by a customer who prefers to deploy it themselves.
+#
+# Per customer you need (see docs/DEPLOYMENT.md):
+#   - customers/<customer>.json
+#   - an Azure DevOps service connection into the customer's tenant (workload identity federation)
+#   - a variable group "apptelem-<customer>" with the secret variable PP_CLIENT_SECRET
+#   - an ADO Environment "apptelem-<customer>" (add approvals/checks there)
+trigger: none
+
+parameters:
+  - name: customer
+    displayName: Customer code (file name in customers/, without .json)
+    type: string
+  - name: serviceConnection
+    displayName: Azure DevOps service connection for the customer's tenant
+    type: string
+  - name: deployAzure
+    type: boolean
+    default: true
+  - name: deployFabric
+    type: boolean
+    default: true
+  - name: deployPowerPlatform
+    type: boolean
+    default: true
+
+pool:
+  vmImage: windows-latest
+
+variables:
+  - group: apptelem-${{ parameters.customer }}
+
+stages:
+  - ${{ if eq(parameters.deployAzure, true) }}:
+      - stage: Azure
+        displayName: Azure (Application Insights, Key Vault)
+        jobs:
+          - deployment: DeployAzure
+            environment: apptelem-${{ parameters.customer }}
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - checkout: self
+                    - task: AzureCLI@2
+                      displayName: Deploy Azure resources
+                      inputs:
+                        azureSubscription: ${{ parameters.serviceConnection }}
+                        scriptType: pscore
+                        scriptLocation: inlineScript
+                        inlineScript: ./scripts/Deploy-Azure.ps1 -Customer '${{ parameters.customer }}'
+                        workingDirectory: $(Build.SourcesDirectory)
+                    - publish: $(Build.SourcesDirectory)/out/${{ parameters.customer }}/azure-outputs.json
+                      artifact: azure-outputs
+
+  - ${{ if eq(parameters.deployFabric, true) }}:
+      - stage: Fabric
+        displayName: Fabric (workspace items)
+        ${{ if eq(parameters.deployAzure, true) }}:
+          dependsOn: Azure
+        ${{ else }}:
+          dependsOn: []
+        jobs:
+          - deployment: DeployFabric
+            environment: apptelem-${{ parameters.customer }}
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - checkout: self
+                    - ${{ if eq(parameters.deployAzure, true) }}:
+                        - download: current
+                          artifact: azure-outputs
+                        - pwsh: |
+                            New-Item -ItemType Directory "out/${{ parameters.customer }}" -Force | Out-Null
+                            Copy-Item "$(Pipeline.Workspace)/azure-outputs/azure-outputs.json" "out/${{ parameters.customer }}/"
+                          displayName: Restore Azure outputs
+                          workingDirectory: $(Build.SourcesDirectory)
+                    - task: UsePythonVersion@0
+                      inputs:
+                        versionSpec: '3.11'
+                    - task: AzureCLI@2
+                      displayName: Publish Fabric items
+                      inputs:
+                        azureSubscription: ${{ parameters.serviceConnection }}
+                        scriptType: pscore
+                        scriptLocation: inlineScript
+                        inlineScript: ./scripts/Deploy-Fabric.ps1 -Customer '${{ parameters.customer }}'
+                        workingDirectory: $(Build.SourcesDirectory)
+
+  - ${{ if eq(parameters.deployPowerPlatform, true) }}:
+      - stage: PowerPlatform
+        displayName: Power Platform (solution import)
+        ${{ if eq(parameters.deployAzure, true) }}:
+          dependsOn: Azure
+        ${{ else }}:
+          dependsOn: []
+        jobs:
+          - deployment: DeployPowerPlatform
+            environment: apptelem-${{ parameters.customer }}
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - checkout: self
+                    - ${{ if eq(parameters.deployAzure, true) }}:
+                        - download: current
+                          artifact: azure-outputs
+                        - pwsh: |
+                            New-Item -ItemType Directory "out/${{ parameters.customer }}" -Force | Out-Null
+                            Copy-Item "$(Pipeline.Workspace)/azure-outputs/azure-outputs.json" "out/${{ parameters.customer }}/"
+                          displayName: Restore Azure outputs
+                          workingDirectory: $(Build.SourcesDirectory)
+                    - pwsh: |
+                        dotnet tool install --global Microsoft.PowerApps.CLI.Tool
+                        Write-Host "##vso[task.prependpath]$env:USERPROFILE\.dotnet\tools"
+                      displayName: Install Power Platform CLI
+                    - pwsh: ./scripts/Deploy-PowerPlatform.ps1 -Customer '${{ parameters.customer }}'
+                      displayName: Pack and import solution
+                      workingDirectory: $(Build.SourcesDirectory)
+                      env:
+                        PP_CLIENT_SECRET: $(PP_CLIENT_SECRET)

@@ -1,0 +1,4 @@
+out/
+customers/*.json
+!customers/_template.json
+__pycache__/
