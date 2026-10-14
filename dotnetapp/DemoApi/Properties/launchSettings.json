@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "DemoApi": {
+      "commandName": "Project",
+      "applicationUrl": "http://localhost:5080",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "OTEL_SERVICE_NAME": "demo-dotnet-api"
+      }
+    }
+  }
+}

@@ -2,3 +2,5 @@ out/
 customers/*.json
 !customers/_template.json
 __pycache__/
+bin/
+obj/
