@@ -10,6 +10,27 @@ One repo, three components, deployed per customer tenant from a config file.
 
 `scripts/Deploy-All.ps1 -Customer <code>` runs all three. `azure-pipelines.yml` runs the same scripts as stages.
 
+## Structure
+
+```mermaid
+flowchart LR
+  repo[app_telemetry repo]
+  repo --> azure[azure/<br/>Bicep: App Insights, Log Analytics, Key Vault]
+  repo --> fabric[fabric/<br/>Lakehouse, Notebook, Pipeline,<br/>Semantic Model, KQL Queryset]
+  repo --> pa[powerapps/<br/>Solution, Canvas app, Flow]
+  repo --> cust[customers/<br/>_template.json + one file per client]
+  repo --> scripts[scripts/<br/>Deploy-Azure, -Fabric, -PowerPlatform, -All]
+  repo --> ado[azure-pipelines.yml<br/>Azure, Fabric, Power Platform stages]
+  repo --> docs[docs/DEPLOYMENT.md]
+  cust -. config .-> scripts
+  ado -- runs --> scripts
+  scripts -- Bicep --> azure
+  scripts -- fabric-cicd --> fabric
+  scripts -- pac --> pa
+  pa -- Trace telemetry --> azure
+  azure -- App Insights data --> fabric
+```
+
 ## Per customer
 
 1. Copy `customers/_template.json` to `customers/<code>.json` and fill it in. Customer files are git-ignored by default; remove that rule in `.gitignore` if you want them committed (they contain no secrets).
