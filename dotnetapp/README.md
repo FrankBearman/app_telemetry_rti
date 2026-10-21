@@ -17,7 +17,7 @@ Send an `X-Demo-Run-Id` header to have it recorded as `customDimensions.clientRu
 
 ## Run locally
 
-Prerequisite: [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
+Prerequisite: [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 ```powershell
 cd dotnetapp\DemoApi
@@ -32,6 +32,12 @@ In a second terminal:
 
 ```powershell
 .\dotnetapp\scripts\generate-traffic.ps1 -Count 20
+```
+
+If script execution is blocked by your PowerShell execution policy, run the script with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\dotnetapp\scripts\generate-traffic.ps1 -Count 20
 ```
 
 Without the connection string the app still runs but sends nothing.

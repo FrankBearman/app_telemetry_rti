@@ -10,7 +10,7 @@ python -m py_compile "fabric/app_telemetry_ingest.Notebook/notebook-content.py"
 
 This checks syntax only; the notebook depends on Fabric-provided `spark` and `notebookutils` and cannot be run as a normal local Python script. For an end-to-end check, run `fabric/app_telemetry_ingest.Notebook` in the Fabric workspace and inspect the notebook run output. There are no individual tests to select.
 
-For deployment scripts, check PowerShell syntax by parsing (`[System.Management.Automation.Language.Parser]::ParseFile`) and Bicep with `bicep build azure/infra/main.bicep`; neither deployment path has been run end to end.
+For the demo API, check with `dotnet build dotnetapp/DemoApi`. It is standalone (no Power Platform dependency) and is not part of the deployment tooling. For deployment scripts, check PowerShell syntax by parsing (`[System.Management.Automation.Language.Parser]::ParseFile`) and Bicep with `bicep build azure/infra/main.bicep`; neither deployment path has been run end to end.
 
 ## Architecture
 

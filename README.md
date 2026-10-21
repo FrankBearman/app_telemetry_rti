@@ -1,5 +1,7 @@
 # Application telemetry solution
 
+For what the project does and how data flows, see [docs/OVERVIEW.md](docs/OVERVIEW.md).
+
 The repository is organized into three components so each can evolve toward a
 separate deployment:
 
@@ -8,6 +10,7 @@ separate deployment:
 - [`azure/`](./azure/): Azure-side resources and configuration, including
   Application Insights and its access setup.
 - [`powerapps/`](./powerapps/): demo Power Apps intended to generate telemetry.
+- [`dotnetapp/`](./dotnetapp/): standalone .NET demo API that sends telemetry to the same Application Insights resource.
 
 The existing Fabric artifacts and Application Insights setup guide have been
 grouped into their corresponding component folders. The Azure resource
