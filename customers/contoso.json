@@ -19,7 +19,7 @@
 
   "fabric": {
     "deploy": true,
-    "workspaceId": "e40c817a-488d-4c50-b65e-4020fa697795",
+    "workspaceId": "faa9dc33-4f71-4eb4-b815-0f4fd8662646",
     "itemTypes": [
       "Lakehouse",
       "Notebook",
