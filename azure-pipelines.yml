@@ -78,6 +78,15 @@ stages:
                             Copy-Item "$(Pipeline.Workspace)/azure-outputs/azure-outputs.json" "out/${{ parameters.customer }}/"
                           displayName: Restore Azure outputs
                           workingDirectory: $(Build.SourcesDirectory)
+                    - ${{ else }}:
+                        - task: AzureCLI@2
+                          displayName: Read existing Azure outputs
+                          inputs:
+                            azureSubscription: ${{ parameters.serviceConnection }}
+                            scriptType: pscore
+                            scriptLocation: inlineScript
+                            inlineScript: ./scripts/Deploy-Azure.ps1 -Customer '${{ parameters.customer }}' -OutputsOnly
+                            workingDirectory: $(Build.SourcesDirectory)
                     - task: UsePythonVersion@0
                       inputs:
                         versionSpec: '3.11'
@@ -113,6 +122,15 @@ stages:
                             Copy-Item "$(Pipeline.Workspace)/azure-outputs/azure-outputs.json" "out/${{ parameters.customer }}/"
                           displayName: Restore Azure outputs
                           workingDirectory: $(Build.SourcesDirectory)
+                    - ${{ else }}:
+                        - task: AzureCLI@2
+                          displayName: Read existing Azure outputs
+                          inputs:
+                            azureSubscription: ${{ parameters.serviceConnection }}
+                            scriptType: pscore
+                            scriptLocation: inlineScript
+                            inlineScript: ./scripts/Deploy-Azure.ps1 -Customer '${{ parameters.customer }}' -OutputsOnly
+                            workingDirectory: $(Build.SourcesDirectory)
                     - pwsh: |
                         dotnet tool install --global Microsoft.PowerApps.CLI.Tool
                         Write-Host "##vso[task.prependpath]$env:USERPROFILE\.dotnet\tools"

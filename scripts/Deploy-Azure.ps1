@@ -11,7 +11,9 @@
 param(
     [Parameter(Mandatory)][string]$Customer,
     [string]$RepoRoot = (Split-Path $PSScriptRoot -Parent),
-    [switch]$WhatIf
+    [switch]$WhatIf,
+    # Skip deploying; just rewrite azure-outputs.json from the customer's existing deployment.
+    [switch]$OutputsOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -21,6 +23,24 @@ New-Item -ItemType Directory $outDir -Force | Out-Null
 
 az account set --subscription $cfg.subscriptionId
 if ($LASTEXITCODE) { throw 'az account set failed.' }
+
+if ($OutputsOnly) {
+    $raw = az deployment group show --resource-group $cfg.resourceGroup --name "apptelem-$($cfg.customerCode)" --query properties.outputs --output json
+    if ($LASTEXITCODE) { throw 'Could not read existing deployment outputs. Run the Azure deployment first.' }
+    $o = $raw | ConvertFrom-Json
+    [ordered]@{
+        appInsightsName             = $o.appInsightsName.value
+        appInsightsId               = $o.appInsightsId.value
+        appInsightsAppId            = $o.appInsightsAppId.value
+        appInsightsConnectionString = $o.appInsightsConnectionString.value
+        keyVaultName                = $o.keyVaultName.value
+        keyVaultUrl                 = $o.keyVaultUrl.value
+        resourceGroup               = $cfg.resourceGroup
+        subscriptionId              = $cfg.subscriptionId
+    } | ConvertTo-Json | Set-Content (Join-Path $outDir 'azure-outputs.json') -Encoding utf8
+    Write-Host "Wrote outputs from existing deployment to $outDir\azure-outputs.json"
+    return
+}
 
 az group create --name $cfg.resourceGroup --location $cfg.location --tags solution=app-telemetry customer=$($cfg.customerCode) --output none
 if ($LASTEXITCODE) { throw 'Resource group creation failed.' }
