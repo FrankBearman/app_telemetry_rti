@@ -68,6 +68,22 @@ The Fabric stage runs as the identity behind the chosen service connection. It m
 3. In the Fabric workspace → Manage access → add the app (or the security group) as **Member** or **Admin**. Contributor is not enough.
 4. Check `fabric.workspaceId` in `customers/<code>.json` is the correct workspace, then rerun the pipeline.
 
+### Power Platform app registration
+
+The Power Platform stage authenticates with `pac auth create` using a client secret. This is a different identity from the Azure/Fabric service connection (which uses federated credentials and has no secret).
+
+1. Entra ID → App registrations → **New registration**. Single tenant, no redirect URI. Copy the **Application (client) ID** and the tenant ID.
+2. Open **that same app registration** (the one whose client ID you copied in step 1) → Certificates & secrets → **New client secret**. A secret only works for the app it was created on, so it must not come from the Azure/Fabric service connection's app or any other app. Copy the **Value** (not the Secret ID) immediately; it is shown only once. Store it as the secret variable `PP_CLIENT_SECRET` in the `apptelem-<code>` variable group. The secret expires, so set a rotation reminder.
+   - `AADSTS7000215: Invalid client secret` means the secret does not belong to `powerPlatform.applicationId`, is the Secret ID rather than the Value, has expired, or `PP_CLIENT_SECRET` is missing/misnamed in the variable group.
+3. No API permissions are needed.
+4. Power Platform admin center → Environments → the target environment → Settings → Users + permissions → **Application users** → New app user. Select the app, choose the root business unit, and assign a role that can import solutions (System Administrator, or a custom role). The environment must be Dataverse-enabled.
+5. In `customers/<code>.json` set `powerPlatform.applicationId` to the client ID and `powerPlatform.environmentUrl` to the environment URL.
+6. Optional check:
+   ```powershell
+   pac auth create --name test --applicationId <client-id> --clientSecret <secret> --tenant <tenant-id> --environment <environment-url>
+   pac org who
+   ```
+
 ## After deployment: API key, secret and first ingest
 
 The deployment creates the Key Vault but not the secret. The Fabric notebook reads the secret `appinsights-query-api-key` at runtime, and `deploy_fabric.py` already points the deployed notebook at the customer's vault (`keyVaultUrl` from `azure-outputs.json`).

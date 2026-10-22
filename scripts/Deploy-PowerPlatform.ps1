@@ -62,6 +62,8 @@ $settingsFile = Join-Path $outDir 'deployment-settings.json'
 $settings | ConvertTo-Json -Depth 5 | Set-Content $settingsFile -Encoding utf8
 
 if (-not $env:PP_CLIENT_SECRET) { throw 'Set the PP_CLIENT_SECRET environment variable.' }
+if ($env:PP_CLIENT_SECRET -match '^\$\(') { throw 'PP_CLIENT_SECRET was not resolved by Azure DevOps (still a macro). Add a secret variable named exactly PP_CLIENT_SECRET to the variable group and authorize the pipeline to use it.' }
+Write-Host "Authenticating as app $($pp.applicationId); secret length $($env:PP_CLIENT_SECRET.Length) chars."
 pac auth create --name "apptelem-$Customer" --applicationId $pp.applicationId --clientSecret $env:PP_CLIENT_SECRET --tenant $cfg.tenantId --environment $pp.environmentUrl
 if ($LASTEXITCODE) { throw 'pac auth create failed.' }
 
