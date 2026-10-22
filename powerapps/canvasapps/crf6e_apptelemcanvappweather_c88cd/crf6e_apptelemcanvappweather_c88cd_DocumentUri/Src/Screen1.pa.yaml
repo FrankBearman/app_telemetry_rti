@@ -11,7 +11,7 @@ Screens:
     Properties:
       LoadingSpinnerColor: =RGBA(56, 96, 178, 1)
     Children:
-      - Button1:
+      - Run Flow:
           Control: Classic/Button@2.2.0
           Properties:
             BorderColor: =ColorFade(Self.Fill, -15%)
@@ -22,7 +22,7 @@ Screens:
             HoverBorderColor: =ColorFade(Self.BorderColor, 20%)
             HoverColor: =RGBA(255, 255, 255, 1)
             HoverFill: =ColorFade(RGBA(56, 96, 178, 1), -20%)
-            OnSelect: |+
+            OnSelect: |-
               =Set(varWeatherFlowRunId, Text(GUID()));
 
               Trace(
@@ -30,36 +30,25 @@ Screens:
                   TraceSeverity.Information,
                   {
                       clientRunId: varWeatherFlowRunId,
-                      flowName: "app-telem-pp-flow-weather"
+                      flowName: "ap-telem-pp-weather-flow"
                   }
               );
 
-              IfError(
-                  'app-telem-pp-flow-weather'.Run(),
-                  Trace(
-                      "weather-flow.failed",
-                      TraceSeverity.Error,
-                      {
-                          clientRunId: varWeatherFlowRunId,
-                          flowName: "app-telem-pp-flow-weather"
-                      }
-                  );
-                  Notify(
-                      "Weather flow failed. Check the flow run and app telemetry.",
-                      NotificationType.Error
-                  ),
-                  Trace(
-                      "weather-flow.succeeded",
-                      TraceSeverity.Information,
-                      {
-                          clientRunId: varWeatherFlowRunId,
-                          flowName: "app-telem-pp-flow-weather"
-                      }
-                  );
-                  Notify("Weather flow completed.", NotificationType.Success)
-              )
+              'ap-telem-pp-flow-weather'.Run();
+
+              Trace(
+                  "weather-flow.ended",
+                  TraceSeverity.Information,
+                  {
+                      clientRunId: varWeatherFlowRunId,
+                      flowName: "ap-telem-pp-weather-flow"
+                  }
+              );
+
+              Notify("Flow run")
             PressedBorderColor: =Self.Fill
             PressedColor: =Self.Fill
             PressedFill: =Self.Color
-            X: =40
-            Y: =40
+            Text: ="Run Flow"
+            X: =712
+            Y: =312

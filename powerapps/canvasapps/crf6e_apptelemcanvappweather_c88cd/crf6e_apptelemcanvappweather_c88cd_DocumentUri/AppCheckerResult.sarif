@@ -5,49 +5,8 @@
     {
       "results": [
         {
-          "ruleId": "app-ErrUnknownNamespaceFunction",
-          "ruleIndex": 0,
-          "message": {
-            "id": "issue",
-            "arguments": [
-              "Run",
-              "'app-telem-pp-flow-weather'"
-            ]
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "address": {
-                  "relativeAddress": 0,
-                  "fullyQualifiedName": "Screen1.Button1.OnSelect"
-                },
-                "region": {
-                  "charOffset": 236,
-                  "charLength": 33,
-                  "snippet": {
-                    "text": "'app-telem-pp-flow-weather'.Run()"
-                  }
-                }
-              },
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "Screen1.Button1.OnSelect"
-                }
-              ],
-              "properties": {
-                "module": "Screen1",
-                "type": "Screen1.Button1",
-                "member": "OnSelect"
-              }
-            }
-          ],
-          "properties": {
-            "level": "High"
-          }
-        },
-        {
           "ruleId": "acc-ReadableScreenNameNeeded",
-          "ruleIndex": 1,
+          "ruleIndex": 0,
           "message": {
             "id": "issue"
           },
@@ -81,20 +40,6 @@
           "fullName": "PowerApps app checker",
           "version": "1.349",
           "rules": [
-            {
-              "id": "app-ErrUnknownNamespaceFunction",
-              "messageStrings": {
-                "issue": {
-                  "text": "'{0}' is an unknown or unsupported function in namespace '{1}'."
-                }
-              },
-              "properties": {
-                "whyFix": "",
-                "level": "High",
-                "componentType": "app",
-                "primaryCategory": "formula"
-              }
-            },
             {
               "id": "acc-ReadableScreenNameNeeded",
               "messageStrings": {

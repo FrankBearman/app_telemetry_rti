@@ -93,7 +93,7 @@
     "Children": [
       {
         "Type": "ControlInfo",
-        "Name": "Button1",
+        "Name": "Run Flow",
         "HasDynamicProperties": false,
         "Template": {
           "Id": "http://microsoft.com/appmagic/button",
@@ -125,7 +125,7 @@
           {
             "Property": "Text",
             "Category": "Data",
-            "InvariantScript": "\"Button\"",
+            "InvariantScript": "\"Run Flow\"",
             "RuleProviderType": "Unknown"
           },
           {
@@ -245,13 +245,13 @@
           {
             "Property": "X",
             "Category": "Design",
-            "InvariantScript": "40",
+            "InvariantScript": "712",
             "RuleProviderType": "Unknown"
           },
           {
             "Property": "Y",
             "Category": "Design",
-            "InvariantScript": "40",
+            "InvariantScript": "312",
             "RuleProviderType": "Unknown"
           },
           {
@@ -335,12 +335,19 @@
           {
             "Property": "OnSelect",
             "Category": "Behavior",
-            "InvariantScript": "Set(varWeatherFlowRunId, Text(GUID()));\r\n\r\nTrace(\r\n    \"weather-flow.started\",\r\n    TraceSeverity.Information,\r\n    {\r\n        clientRunId: varWeatherFlowRunId,\r\n        flowName: \"app-telem-pp-flow-weather\"\r\n    }\r\n);\r\n\r\nIfError(\r\n    'app-telem-pp-flow-weather'.Run(),\r\n    Trace(\r\n        \"weather-flow.failed\",\r\n        TraceSeverity.Error,\r\n        {\r\n            clientRunId: varWeatherFlowRunId,\r\n            flowName: \"app-telem-pp-flow-weather\"\r\n        }\r\n    );\r\n    Notify(\r\n        \"Weather flow failed. Check the flow run and app telemetry.\",\r\n        NotificationType.Error\r\n    ),\r\n    Trace(\r\n        \"weather-flow.succeeded\",\r\n        TraceSeverity.Information,\r\n        {\r\n            clientRunId: varWeatherFlowRunId,\r\n            flowName: \"app-telem-pp-flow-weather\"\r\n        }\r\n    );\r\n    Notify(\"Weather flow completed.\", NotificationType.Success)\r\n)\r\n",
+            "InvariantScript": "Set(varWeatherFlowRunId, Text(GUID()));\r\n\r\nTrace(\r\n    \"weather-flow.started\",\r\n    TraceSeverity.Information,\r\n    {\r\n        clientRunId: varWeatherFlowRunId,\r\n        flowName: \"ap-telem-pp-weather-flow\"\r\n    }\r\n);\r\n\r\n'ap-telem-pp-flow-weather'.Run();\r\n\r\nTrace(\r\n    \"weather-flow.ended\",\r\n    TraceSeverity.Information,\r\n    {\r\n        clientRunId: varWeatherFlowRunId,\r\n        flowName: \"ap-telem-pp-weather-flow\"\r\n    }\r\n);\r\n\r\nNotify(\"Flow run\")",
             "RuleProviderType": "User"
           }
         ],
         "ControlPropertyState": [
-          "Text",
+          {
+            "InvariantPropertyName": "Text",
+            "AutoRuleBindingEnabled": false,
+            "AutoRuleBindingString": "\"Button\"",
+            "NameMapSourceSchema": "?",
+            "IsLockable": false,
+            "AFDDataSourceName": ""
+          },
           "BorderColor",
           "DisabledBorderColor",
           "PressedBorderColor",
