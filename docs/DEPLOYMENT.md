@@ -85,6 +85,10 @@ The Power Platform stage authenticates with `pac auth create` using a client sec
    pac org who
    ```
 
+### Connection references
+
+`powerPlatform.connectionReferences` entries with an empty or `REPLACE_*` `connectionId` are skipped (with a warning), leaving the reference unbound. To bind one, create the connection in the target environment and put its ID (from the maker-portal connection URL, or `pac connection list`) in the customer JSON.
+
 ## After deployment: API key, secret and first ingest
 
 The deployment creates the Key Vault but not the secret. The Fabric notebook reads the secret `appinsights-query-api-key` at runtime, and `deploy_fabric.py` already points the deployed notebook at the customer's vault (`keyVaultUrl` from `azure-outputs.json`).

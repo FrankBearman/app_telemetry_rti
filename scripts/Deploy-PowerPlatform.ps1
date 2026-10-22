@@ -62,7 +62,12 @@ if ($PackOnly) { Write-Host "Packed: $zip"; return }
 
 $settings = [ordered]@{
     EnvironmentVariables = @($pp.environmentVariables | ForEach-Object { [ordered]@{ SchemaName = $_.schemaName; Value = $_.value } })
-    ConnectionReferences = @($pp.connectionReferences | ForEach-Object { [ordered]@{ LogicalName = $_.logicalName; ConnectionId = $_.connectionId; ConnectorId = $_.connectorId } })
+    ConnectionReferences = @($pp.connectionReferences | Where-Object {
+        if (-not $_.connectionId -or $_.connectionId -like 'REPLACE_*') {
+            Write-Warning "Skipping connection reference $($_.logicalName): no real connectionId set."
+            $false
+        } else { $true }
+    } | ForEach-Object { [ordered]@{ LogicalName = $_.logicalName; ConnectionId = $_.connectionId; ConnectorId = $_.connectorId } })
 }
 $settingsFile = Join-Path $outDir 'deployment-settings.json'
 $settings | ConvertTo-Json -Depth 5 | Set-Content $settingsFile -Encoding utf8
