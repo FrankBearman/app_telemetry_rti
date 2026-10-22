@@ -80,5 +80,20 @@ pac auth create --name "apptelem-$Customer" --applicationId $pp.applicationId --
 if ($LASTEXITCODE) { throw 'pac auth create failed.' }
 
 pac solution import --path $zip --settings-file $settingsFile --publish-changes --force-overwrite --async --max-async-wait-time 60
-if ($LASTEXITCODE) { throw 'pac solution import failed.' }
+if ($LASTEXITCODE) {
+    # pac only reports "An unexpected error occurred"; the detail is in the Dataverse import job.
+    try {
+        $envUrl = $pp.environmentUrl.TrimEnd('/')
+        $tok = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$($cfg.tenantId)/oauth2/v2.0/token" -Body @{
+            grant_type = 'client_credentials'; client_id = $pp.applicationId; client_secret = $secret; scope = "$envUrl/.default" }
+        $job = (Invoke-RestMethod -Headers @{ Authorization = "Bearer $($tok.access_token)" } `
+            -Uri "$envUrl/api/data/v9.2/importjobs?`$orderby=createdon desc&`$top=1&`$select=data,solutionname,progress").value[0]
+        Write-Host "--- Dataverse import job ($($job.solutionname), progress $($job.progress)) ---"
+        $xml = [xml]$job.data
+        $xml.SelectNodes("//*[@result='failure' or @errorcode]") | ForEach-Object {
+            Write-Host "$($_.LocalName) $($_.name) $($_.id): $($_.errorcode) $($_.errortext)"
+        }
+    } catch { Write-Warning "Could not fetch import job details: $_" }
+    throw 'pac solution import failed.'
+}
 Write-Host "Imported $($pp.solutionName) into $($pp.environmentUrl)"
