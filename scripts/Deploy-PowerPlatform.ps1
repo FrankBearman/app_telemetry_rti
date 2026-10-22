@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Packs powerapps/ (Dataverse Git-integration YAML format) into a managed solution and imports it
+  Packs powerapps/ (Dataverse Git-integration YAML format) into a managed (default) or unmanaged (powerPlatform.managed = false) solution and imports it
   into the customer's Power Platform environment.
 
   Needs the Power Platform CLI (pac) on PATH and a service principal registered as an application
@@ -49,8 +49,13 @@ Get-ChildItem (Join-Path $stage 'canvasapps') -Recurse -Filter Properties.json -
 }
 Write-Host "Patched Application Insights settings in $patched Canvas app file(s)."
 
-$zip = Join-Path $outDir "$($pp.solutionName)_managed.zip"
-pac solution pack --folder $stage --zipfile $zip --packagetype Managed
+# powerPlatform.managed defaults to true; Dataverse cannot update a solution across modes.
+$managed = $true
+if ($null -ne $pp.managed) { $managed = [bool]$pp.managed }
+$packageType = if ($managed) { 'Managed' } else { 'Unmanaged' }
+Write-Host "Packing as $packageType solution."
+$zip = Join-Path $outDir "$($pp.solutionName)_$($packageType.ToLower()).zip"
+pac solution pack --folder $stage --zipfile $zip --packagetype $packageType
 if ($LASTEXITCODE) { throw 'pac solution pack failed.' }
 if ($PackOnly) { Write-Host "Packed: $zip"; return }
 

@@ -78,6 +78,7 @@ The Power Platform stage authenticates with `pac auth create` using a client sec
 3. No API permissions are needed.
 4. Power Platform admin center → Environments → the target environment → Settings → Users + permissions → **Application users** → New app user. Select the app, choose the root business unit, and assign a role that can import solutions (System Administrator, or a custom role). The environment must be Dataverse-enabled.
 5. In `customers/<code>.json` set `powerPlatform.applicationId` to the client ID and `powerPlatform.environmentUrl` to the environment URL.
+   - `powerPlatform.managed` (default `true`) chooses a managed or unmanaged package. Use `false` for dev/test. The mode must match what is already installed: a mismatch fails with "already installed ... as an unmanaged solution", and you must delete the solution in the environment before switching.
 6. Optional check:
    ```powershell
    pac auth create --name test --applicationId <client-id> --clientSecret <secret> --tenant <tenant-id> --environment <environment-url>
