@@ -5,8 +5,9 @@
   into the customer's Power Platform environment.
 
   Needs the Power Platform CLI (pac) on PATH and a service principal registered as an application
-  user in the target environment. The client secret is read from the PP_CLIENT_SECRET environment
-  variable (a secret variable in ADO) - never from the customer file.
+  user in the target environment.   The client secret is read at run time from the customer's Key Vault
+    (secret 'pp-client-secret', or powerPlatform.clientSecretName; needs an az login) or, if set, the
+    PP_CLIENT_SECRET environment variable - never from the customer file.
 
   The Application Insights connection string produced by Deploy-Azure.ps1 is written into the
   Canvas app before packing, so the app reports to the customer's own resource.
@@ -66,10 +67,16 @@ $settings = [ordered]@{
 $settingsFile = Join-Path $outDir 'deployment-settings.json'
 $settings | ConvertTo-Json -Depth 5 | Set-Content $settingsFile -Encoding utf8
 
-if (-not $env:PP_CLIENT_SECRET) { throw 'Set the PP_CLIENT_SECRET environment variable.' }
-if ($env:PP_CLIENT_SECRET -match '^\$\(') { throw 'PP_CLIENT_SECRET was not resolved by Azure DevOps (still a macro). Add a secret variable named exactly PP_CLIENT_SECRET to the variable group and authorize the pipeline to use it.' }
-Write-Host "Authenticating as app $($pp.applicationId); secret length $($env:PP_CLIENT_SECRET.Length) chars."
-pac auth create --name "apptelem-$Customer" --applicationId $pp.applicationId --clientSecret $env:PP_CLIENT_SECRET --tenant $cfg.tenantId --environment $pp.environmentUrl
+$secret = $env:PP_CLIENT_SECRET
+if (-not $secret -or $secret -match '^\$\(') {
+    $secretName = if ($pp.clientSecretName) { $pp.clientSecretName } else { 'pp-client-secret' }
+    Write-Host "Reading secret '$secretName' from Key Vault $($azure.keyVaultName)."
+    $secret = az keyvault secret show --vault-name $azure.keyVaultName --name $secretName --query value -o tsv
+    if ($LASTEXITCODE -or -not $secret) { throw "Could not read Key Vault secret '$secretName' from $($azure.keyVaultName). Create it and grant the deploy service connection 'Key Vault Secrets User'." }
+}
+Write-Host "##vso[task.setsecret]$secret"
+Write-Host "Authenticating as app $($pp.applicationId); secret length $($secret.Length) chars."
+pac auth create --name "apptelem-$Customer" --applicationId $pp.applicationId --clientSecret $secret --tenant $cfg.tenantId --environment $pp.environmentUrl
 if ($LASTEXITCODE) { throw 'pac auth create failed.' }
 
 pac solution import --path $zip --settings-file $settingsFile --publish-changes --force-overwrite --async --max-async-wait-time 60

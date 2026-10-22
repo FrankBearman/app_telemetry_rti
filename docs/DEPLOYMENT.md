@@ -38,7 +38,7 @@ flowchart LR
    - Azure: subscription, and rights to create the resource group and role assignments.
    - Fabric: workspace created and capacity-assigned; deploying identity is a workspace member; the tenant setting allowing service principals to use Fabric APIs is enabled.
    - Power Platform: target environment; an app registration added as an application user with System Administrator.
-3. Secrets are never stored in the repo. `PP_CLIENT_SECRET` comes from the environment (ADO secret variable).
+3. Secrets are never stored in the repo. The PP client secret is read at run time from the customer Key Vault (secret `pp-client-secret`).
 
 ## Manual run
 
@@ -54,7 +54,7 @@ Use `-PackOnly` on `Deploy-PowerPlatform.ps1` to produce the solution zip withou
 
 Create a pipeline from `azure-pipelines.yml`, then per customer create:
 - a service connection into the customer tenant (workload identity federation preferred),
-- a variable group `apptelem-<code>` containing secret `PP_CLIENT_SECRET`,
+- Key Vault secret `pp-client-secret` (the service connection's SPN needs **Key Vault Secrets User** on the vault),
 - an Environment `apptelem-<code>` (add approvals there).
 
 Run with the `customer` and `serviceConnection` parameters. Azure outputs are passed to later stages as the `azure-outputs` pipeline artifact.
@@ -73,8 +73,8 @@ The Fabric stage runs as the identity behind the chosen service connection. It m
 The Power Platform stage authenticates with `pac auth create` using a client secret. This is a different identity from the Azure/Fabric service connection (which uses federated credentials and has no secret).
 
 1. Entra ID → App registrations → **New registration**. Single tenant, no redirect URI. Copy the **Application (client) ID** and the tenant ID.
-2. Open **that same app registration** (the one whose client ID you copied in step 1) → Certificates & secrets → **New client secret**. A secret only works for the app it was created on, so it must not come from the Azure/Fabric service connection's app or any other app. Copy the **Value** (not the Secret ID) immediately; it is shown only once. Store it as the secret variable `PP_CLIENT_SECRET` in the `apptelem-<code>` variable group. The secret expires, so set a rotation reminder.
-   - `AADSTS7000215: Invalid client secret` means the secret does not belong to `powerPlatform.applicationId`, is the Secret ID rather than the Value, has expired, or `PP_CLIENT_SECRET` is missing/misnamed in the variable group.
+2. Open **that same app registration** (the one whose client ID you copied in step 1) → Certificates & secrets → **New client secret**. A secret only works for the app it was created on, so it must not come from the Azure/Fabric service connection's app or any other app. Copy the **Value** (not the Secret ID) immediately; it is shown only once. Store it in Key Vault: `az keyvault secret set --vault-name <kv> --name pp-client-secret --value "<secret>"` (override the name with `powerPlatform.clientSecretName`). The pipeline reads it at run time; nothing is stored in Azure DevOps. The secret expires, so set a rotation reminder.
+   - `AADSTS7000215: Invalid client secret` means the secret does not belong to `powerPlatform.applicationId`, is the Secret ID rather than the Value, has expired, or the Key Vault secret holds the wrong value.
 3. No API permissions are needed.
 4. Power Platform admin center → Environments → the target environment → Settings → Users + permissions → **Application users** → New app user. Select the app, choose the root business unit, and assign a role that can import solutions (System Administrator, or a custom role). The environment must be Dataverse-enabled.
 5. In `customers/<code>.json` set `powerPlatform.applicationId` to the client ID and `powerPlatform.environmentUrl` to the environment URL.

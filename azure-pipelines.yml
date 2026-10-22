@@ -5,7 +5,7 @@
 # Per customer you need (see docs/DEPLOYMENT.md):
 #   - customers/<customer>.json
 #   - an Azure DevOps service connection into the customer's tenant (workload identity federation)
-#   - a variable group "apptelem-<customer>" with the secret variable PP_CLIENT_SECRET
+#   - Key Vault secret "pp-client-secret" (read at run time; SPN needs Key Vault Secrets User)
 #   - an ADO Environment "apptelem-<customer>" (add approvals/checks there)
 trigger: none
 
@@ -137,8 +137,12 @@ stages:
                         dotnet tool install --global Microsoft.PowerApps.CLI.Tool
                         Write-Host "##vso[task.prependpath]$env:USERPROFILE\.dotnet\tools"
                       displayName: Install Power Platform CLI
-                    - pwsh: ./scripts/Deploy-PowerPlatform.ps1 -Customer '${{ parameters.customer }}'
+                    # AzureCLI@2 logs in with the service connection so the script can read the PP client secret from Key Vault.
+                    - task: AzureCLI@2
                       displayName: Pack and import solution
-                      workingDirectory: $(Build.SourcesDirectory)
-                      env:
-                        PP_CLIENT_SECRET: $(PP_CLIENT_SECRET)
+                      inputs:
+                        azureSubscription: ${{ parameters.serviceConnection }}
+                        scriptType: pscore
+                        scriptLocation: inlineScript
+                        inlineScript: ./scripts/Deploy-PowerPlatform.ps1 -Customer '${{ parameters.customer }}'
+                        workingDirectory: $(Build.SourcesDirectory)
