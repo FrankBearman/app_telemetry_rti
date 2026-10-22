@@ -50,11 +50,30 @@ az login --tenant <tenantId>
 
 Use `-PackOnly` on `Deploy-PowerPlatform.ps1` to produce the solution zip without importing.
 
+## Identities and secrets
+
+Four different identities are involved. Do not mix them up.
+
+| # | Identity | Auth | Used by / where | Needs | Secret lives |
+|---|----------|------|-----------------|-------|--------------|
+| 1 | **Service connection SPN** (Azure DevOps) | Federated, no secret | `az login` in every pipeline stage: deploys Bicep, runs `deploy_fabric.py`, and **reads `pp-client-secret` from Key Vault** in the PP stage | Contributor on the customer resource group; **Key Vault Secrets User** on the vault; member of the Fabric workspace + tenant setting "Service principals can use Fabric APIs". No Power Platform access | None |
+| 2 | **Power Platform app registration** (`powerPlatform.applicationId`) | Client secret | `pac auth create` in `Deploy-PowerPlatform.ps1` to import the solution | **System Administrator** application user in the Dataverse environment. No Azure/Key Vault access | Client secret **Value** stored in Key Vault as `pp-client-secret` |
+| 3 | **Fabric notebook run-as identity** | User/SPN that runs the notebook | `app_telemetry_ingest` notebook reads `appinsights-query-api-key` from Key Vault | **Key Vault Secrets User** (via `azure.secretReaderPrincipalIds` or portal) | n/a |
+| 4 | **Human deployer** | Your login | One-off setup | Owner/User Access Administrator (assign roles) and a Key Vault secrets-write role (create secrets) | n/a |
+
+Run flow for the Power Platform stage: pipeline logs in as **#1** → #1 reads the secret `pp-client-secret` from Key Vault → the secret is used to sign in as **#2** with `pac` → #2 imports the solution.
+
+Gotchas:
+- #1 and #2 are separate app registrations. The Key Vault role goes to #1 (the one behind the service connection), not #2.
+- Role assignments need the **enterprise application (service principal) object ID**, not the app registration's object ID. The Key Vault 403 in the pipeline log prints the correct one as `oid=`.
+- Key Vault stores the secret **Value**, never the Secret ID.
+- The #2 secret expires; set a rotation reminder and update the vault secret.
+
 ## Azure DevOps
 
 Create a pipeline from `azure-pipelines.yml`, then per customer create:
 - a service connection into the customer tenant (workload identity federation preferred),
-- Key Vault secret `pp-client-secret` (the service connection's SPN needs **Key Vault Secrets User** on the vault),
+- Key Vault secret `pp-client-secret` (the service connection's SPN, identity #1 above, needs **Key Vault Secrets User** on the vault; the PP app registration does not),
 - an Environment `apptelem-<code>` (add approvals there).
 
 Run with the `customer` and `serviceConnection` parameters. Azure outputs are passed to later stages as the `azure-outputs` pipeline artifact.
@@ -70,7 +89,7 @@ The Fabric stage runs as the identity behind the chosen service connection. It m
 
 ### Power Platform app registration
 
-The Power Platform stage authenticates with `pac auth create` using a client secret. This is a different identity from the Azure/Fabric service connection (which uses federated credentials and has no secret).
+The Power Platform stage authenticates with `pac auth create` using a client secret. This is identity #2 in [Identities and secrets](#identities-and-secrets), different from the Azure/Fabric service connection (#1, federated, no secret). The pipeline fetches this secret from Key Vault using #1.
 
 1. Entra ID → App registrations → **New registration**. Single tenant, no redirect URI. Copy the **Application (client) ID** and the tenant ID.
 2. Open **that same app registration** (the one whose client ID you copied in step 1) → Certificates & secrets → **New client secret**. A secret only works for the app it was created on, so it must not come from the Azure/Fabric service connection's app or any other app. Copy the **Value** (not the Secret ID) immediately; it is shown only once. Store it in Key Vault: `az keyvault secret set --vault-name <kv> --name pp-client-secret --value "<secret>"` (override the name with `powerPlatform.clientSecretName`). The pipeline reads it at run time; nothing is stored in Azure DevOps. The secret expires, so set a rotation reminder.
