@@ -1,31 +1,26 @@
 # Power Apps
 
-Dataverse solution source (`apptelemppsol`) synced from Power Platform Git integration. Deployed to client tenants by [`scripts/Deploy-PowerPlatform.ps1`](../scripts/Deploy-PowerPlatform.ps1) (see [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md)).
+`solutionpackage/` holds the exported `apptelemppsol` Dataverse solution zip (unmanaged) and is the source of truth. [`scripts/Deploy-PowerPlatform.ps1`](../scripts/Deploy-PowerPlatform.ps1) deploys it (see [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md)).
 
-## Contents
+## How deployment works
 
-| Folder | What it holds |
-|--------|---------------|
-| `canvasapps/crf6e_apptelemcanvappweather_c88cd` | Canvas app with a button that calls the weather flow and emits `Trace()` telemetry |
-| `entities/crf6e_apptelemweather` | Dataverse weather table |
-| `appmodules/`, `appmodulesitemaps/` | Model-driven app `crf6e_apptelemppmodapp` |
-| `connectionreferences/` | Dataverse connection reference (bound per customer at deploy time) |
-| `solutions/`, `publishers/` | Solution and publisher metadata |
+1. The script picks the newest `apptelemppsol*.zip` in `solutionpackage/`.
+2. It copies it to `out/<customer>/` and patches the Application Insights key in the canvas app's `Properties.json`.
+3. It runs `pac solution import`. Use `-PackOnly` to prepare the patched zip without importing.
 
-The weather flow (`ap-telem-pp-flow-weather`) is Power Apps-triggered, fetches today's forecast for London and writes a row to the weather table. Its definition is not currently in this folder; confirm it is included in the solution and synced to Git before relying on a deployment, and note that its connections (e.g. MSN Weather) need customer connection IDs.
+## Updating the solution
 
-## Application Insights tracing
+Export the solution from Power Platform (unmanaged for dev/test, managed for production), put the zip in `solutionpackage/` and remove the older zip. Managed vs unmanaged is fixed at export time and cannot be switched in place; delete the solution in the environment first.
 
-The Canvas app's Application Insights connection string is set on the app object in Power Apps Studio (save and publish afterwards). `Trace()` events are only sent when the published app runs, not in Studio preview. Never commit a real connection string or key.
+## Connection references
 
-The button's `OnSelect` in `Src/Screen1.pa.yaml` emits three events, all carrying the same `clientRunId` (a GUID per invocation) and `flowName`:
+Set real connection IDs in `customers/<customer>.json` for:
 
-| Event | When |
-|-------|------|
-| `weather-flow.started` | Before the flow is called |
-| `weather-flow.succeeded` | Flow call returned without error |
-| `weather-flow.failed` | `IfError` caught a failure (severity Error) |
+- Dataverse: `crf6e_sharedcommondataserviceforapps_d81c3`
+- MSN Weather: `new_sharedmsnweather_956a6`
 
-`clientRunId` correlates the start and end events when querying Application Insights; the flow takes no inputs so the id is not passed into it. Keep personal or sensitive data out of trace custom properties.
+`REPLACE_*` placeholders are skipped with a warning.
 
-Edit the Canvas app in Power Apps Studio rather than the YAML where possible (the YAML is generated and only suited to review and minor edits).
+## Telemetry
+
+The canvas app's `Trace()` events land in the Application Insights `traces` table; the Fabric ingest currently reads `requests`. Never commit a real key or connection string.

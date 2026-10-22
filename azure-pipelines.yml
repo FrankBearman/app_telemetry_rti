@@ -139,7 +139,7 @@ stages:
                       displayName: Install Power Platform CLI
                     # AzureCLI@2 logs in with the service connection so the script can read the PP client secret from Key Vault.
                     - task: AzureCLI@2
-                      displayName: Pack and import solution
+                      displayName: Patch key and import solution
                       inputs:
                         azureSubscription: ${{ parameters.serviceConnection }}
                         scriptType: pscore

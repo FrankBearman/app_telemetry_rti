@@ -6,7 +6,7 @@ One repo, three components, deployed per customer tenant from a config file.
 |---|---|---|---|
 | Azure (App Insights, Log Analytics, Key Vault) | `azure/infra` | `scripts/Deploy-Azure.ps1` | Bicep, `az deployment group create` |
 | Fabric (lakehouse, notebook, pipeline, model, ...) | `fabric/` | `scripts/Deploy-Fabric.ps1` | `fabric-cicd`, dev IDs rewritten per customer |
-| Power Platform (solution, Canvas app, flow) | `powerapps/` | `scripts/Deploy-PowerPlatform.ps1` | `pac solution pack/import`, App Insights key patched in |
+| Power Platform (solution, Canvas app, flow) | `powerapps/` | `scripts/Deploy-PowerPlatform.ps1` | committed exported zip, App Insights key patched in, `pac solution import` |
 
 `scripts/Deploy-All.ps1 -Customer <code>` runs all three. `azure-pipelines.yml` runs the same scripts as stages.
 
@@ -78,7 +78,7 @@ The Power Platform stage authenticates with `pac auth create` using a client sec
 3. No API permissions are needed.
 4. Power Platform admin center → Environments → the target environment → Settings → Users + permissions → **Application users** → New app user. Select the app, choose the root business unit, and assign a role that can import solutions (System Administrator, or a custom role). The environment must be Dataverse-enabled.
 5. In `customers/<code>.json` set `powerPlatform.applicationId` to the client ID and `powerPlatform.environmentUrl` to the environment URL.
-   - `powerPlatform.managed` (default `true`) chooses a managed or unmanaged package. Use `false` for dev/test. The mode must match what is already installed: a mismatch fails with "already installed ... as an unmanaged solution", and you must delete the solution in the environment before switching.
+   - The zip in `powerapps/solutionpackage/` is imported as exported. Managed vs unmanaged is fixed at export time; a mismatch with what is installed fails, and you must delete the solution in the environment before switching.
 6. Optional check:
    ```powershell
    pac auth create --name test --applicationId <client-id> --clientSecret <secret> --tenant <tenant-id> --environment <environment-url>
@@ -122,7 +122,7 @@ See also [APP_INSIGHTS_FABRIC_SETUP.md](../azure/APP_INSIGHTS_FABRIC_SETUP.md).
 
 ## Known manual / unverified items
 
-- Not yet run end to end; `pac` YAML-format packing, managed packaging and `fabric-cicd` parameter behaviour need a first test run.
+- Not yet run end to end; the Power Platform solution import and `fabric-cicd` parameter behaviour need a first test run.
 - Dataflows are excluded from the default Fabric item types (per-tenant connection bindings); set up manually.
 - Power Platform connection references (e.g. MSN Weather) and flow wiring need customer connection IDs.
 - Dataverse telemetry export to Application Insights is configured manually in the Power Platform admin center.

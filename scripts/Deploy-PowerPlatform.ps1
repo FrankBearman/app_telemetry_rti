@@ -1,8 +1,9 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Packs powerapps/ (Dataverse Git-integration YAML format) into a managed (default) or unmanaged (powerPlatform.managed = false) solution and imports it
-  into the customer's Power Platform environment.
+  Takes the exported solution zip powerapps\solutionpackage\<solutionName>*.zip, patches the Application Insights
+  settings inside the nested Canvas app (.msapp), and imports it into the customer's Power Platform
+  environment. Managed/unmanaged is whatever the zip was exported as.
 
   Needs the Power Platform CLI (pac) on PATH and a service principal registered as an application
   user in the target environment.   The client secret is read at run time from the customer's Key Vault
@@ -29,36 +30,56 @@ $azure = Get-Content $azureOut -Raw | ConvertFrom-Json
 
 if (-not (Get-Command pac -ErrorAction SilentlyContinue)) { throw 'Power Platform CLI (pac) was not found on PATH.' }
 
-# Stage a copy so the repository source is never modified.
-$stage = Join-Path $outDir 'powerapps-src'
-if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
-Copy-Item (Join-Path $RepoRoot 'powerapps') $stage -Recurse
+# Work on a copy of the exported solution zip so the repository file is never modified.
+$pkgDir = Join-Path $RepoRoot 'powerapps\solutionpackage'
+$found = Get-ChildItem $pkgDir -Filter "$($pp.solutionName)*.zip" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if (-not $found) { throw "No $($pp.solutionName)*.zip found in $pkgDir. Export the solution from dev and commit it there." }
+$source = $found.FullName
+Write-Host "Using solution package $source"
+$zip = Join-Path $outDir "$($pp.solutionName)_import.zip"
+New-Item -ItemType Directory -Force $outDir | Out-Null
+Copy-Item $source $zip -Force
 
 $connectionString = $azure.appInsightsConnectionString
 if ($connectionString -notmatch 'InstrumentationKey=([0-9a-fA-F-]{36})') { throw 'Unexpected Application Insights connection string format.' }
 $instrumentationKey = $Matches[1]
 
-$patched = 0
-Get-ChildItem (Join-Path $stage 'canvasapps') -Recurse -Filter Properties.json -ErrorAction SilentlyContinue | ForEach-Object {
-    $text = Get-Content $_.FullName -Raw
-    if ($text -match '"ConnectionString"\s*:') {
-        $text = [regex]::Replace($text, '("ConnectionString"\s*:\s*)"[^"]*"', { param($m) $m.Groups[1].Value + (ConvertTo-Json $connectionString) })
-        $text = [regex]::Replace($text, '("InstrumentationKey"\s*:\s*)"[^"]*"', { param($m) $m.Groups[1].Value + '"' + $instrumentationKey + '"' })
-        Set-Content $_.FullName $text -Encoding utf8 -NoNewline
-        $patched++
-    }
+function Update-Properties([string]$text) {
+    $text = [regex]::Replace($text, '("ConnectionString"\s*:\s*)"[^"]*"', { param($m) $m.Groups[1].Value + (ConvertTo-Json $connectionString) })
+    [regex]::Replace($text, '("InstrumentationKey"\s*:\s*)"[^"]*"', { param($m) $m.Groups[1].Value + '"' + $instrumentationKey + '"' })
 }
-Write-Host "Patched Application Insights settings in $patched Canvas app file(s)."
 
-# powerPlatform.managed defaults to true; Dataverse cannot update a solution across modes.
-$managed = $true
-if ($null -ne $pp.managed) { $managed = [bool]$pp.managed }
-$packageType = if ($managed) { 'Managed' } else { 'Unmanaged' }
-Write-Host "Packing as $packageType solution."
-$zip = Join-Path $outDir "$($pp.solutionName)_$($packageType.ToLower()).zip"
-pac solution pack --folder $stage --zipfile $zip --packagetype $packageType
-if ($LASTEXITCODE) { throw 'pac solution pack failed.' }
-if ($PackOnly) { Write-Host "Packed: $zip"; return }
+# Patch Properties.json inside each nested .msapp in place; entry names are left untouched.
+Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+$utf8 = New-Object System.Text.UTF8Encoding($false)
+$patched = 0
+$solZip = [IO.Compression.ZipFile]::Open($zip, 'Update')
+try {
+    foreach ($appEntry in @($solZip.Entries | Where-Object { $_.FullName -match '(?i)^canvasapps/.+\.msapp$' })) {
+        $ms = New-Object IO.MemoryStream
+        $s = $appEntry.Open(); $s.CopyTo($ms); $s.Dispose()
+        $app = New-Object IO.Compression.ZipArchive($ms, [IO.Compression.ZipArchiveMode]::Update, $true)
+        $props = $app.GetEntry('Properties.json')
+        if ($props) {
+            $r = New-Object IO.StreamReader($props.Open(), $utf8); $text = $r.ReadToEnd(); $r.Dispose()
+            if ($text -match '"ConnectionString"\s*:') {
+                $new = Update-Properties $text
+                $props.Delete()
+                $e = $app.CreateEntry('Properties.json')
+                $w = New-Object IO.StreamWriter($e.Open(), $utf8); $w.Write($new); $w.Dispose()
+                $patched++
+            }
+        }
+        $app.Dispose()
+        $name = $appEntry.FullName
+        $appEntry.Delete()
+        $out = $solZip.CreateEntry($name).Open()
+        $ms.Position = 0; $ms.CopyTo($out); $out.Dispose(); $ms.Dispose()
+    }
+} finally { $solZip.Dispose() }
+if (-not $patched) { throw "No canvas app Properties.json with a ConnectionString was found in $source." }
+Write-Host "Patched Application Insights settings in $patched Canvas app(s)."
+if ($PackOnly) { Write-Host "Prepared: $zip"; return }
 
 $settings = [ordered]@{
     EnvironmentVariables = @($pp.environmentVariables | ForEach-Object { [ordered]@{ SchemaName = $_.schemaName; Value = $_.value } })

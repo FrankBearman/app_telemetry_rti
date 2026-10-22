@@ -14,7 +14,8 @@ separate deployment:
 
 The existing Fabric artifacts and Application Insights setup guide have been
 grouped into their corresponding component folders. The Azure resource
-configuration and Power Apps demos are not populated yet.
+configuration are not populated yet. The Power Apps solution export is committed in
+`powerapps/solutionpackage/`.
 
 When syncing the Fabric component with a Fabric workspace, configure the Git
 folder mapping to use `fabric/`. See
@@ -23,5 +24,5 @@ for the current Application Insights ingestion setup.
 
 ## Deployment
 
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for per-customer, manual and Azure DevOps deployment (scripts/, customers/, zure-pipelines.yml).
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for per-customer, manual and Azure DevOps deployment (scripts/, customers/, azure-pipelines.yml).
 

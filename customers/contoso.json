@@ -36,7 +36,6 @@
     "environmentUrl": "https://orgd775fbfd.crm.dynamics.com",
     "applicationId": "9aaea9f1-7223-4872-a555-83649f79e2c8",
     "solutionName": "apptelemppsol",
-    "managed": false,
     "connectionReferences": [
       {
         "logicalName": "crf6e_sharedcommondataserviceforapps_d81c3",
