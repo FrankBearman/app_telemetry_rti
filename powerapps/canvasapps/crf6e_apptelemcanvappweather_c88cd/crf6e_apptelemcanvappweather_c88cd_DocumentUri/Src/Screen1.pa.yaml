@@ -34,7 +34,7 @@ Screens:
                   }
               );
 
-              'ap-telem-pp-flow-weather'.Run();
+              Patch('app-telem-weathers', Defaults('app-telem-weathers'), {crf6e_city: "Unknown", crf6e_weather: "Unknown", crf6e_id: varWeatherFlowRunId});
 
               Trace(
                   "weather-flow.ended",
@@ -49,6 +49,6 @@ Screens:
             PressedBorderColor: =Self.Fill
             PressedColor: =Self.Fill
             PressedFill: =Self.Color
-            Text: ="Run Flow"
+            Text: ="Save Weather"
             X: =712
             Y: =312

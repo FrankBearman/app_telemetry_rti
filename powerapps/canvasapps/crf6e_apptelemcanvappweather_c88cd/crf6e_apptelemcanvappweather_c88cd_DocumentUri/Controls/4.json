@@ -125,7 +125,7 @@
           {
             "Property": "Text",
             "Category": "Data",
-            "InvariantScript": "\"Run Flow\"",
+            "InvariantScript": "\"Save Weather\"",
             "RuleProviderType": "Unknown"
           },
           {
@@ -335,7 +335,7 @@
           {
             "Property": "OnSelect",
             "Category": "Behavior",
-            "InvariantScript": "Set(varWeatherFlowRunId, Text(GUID()));\r\n\r\nTrace(\r\n    \"weather-flow.started\",\r\n    TraceSeverity.Information,\r\n    {\r\n        clientRunId: varWeatherFlowRunId,\r\n        flowName: \"ap-telem-pp-weather-flow\"\r\n    }\r\n);\r\n\r\n'ap-telem-pp-flow-weather'.Run();\r\n\r\nTrace(\r\n    \"weather-flow.ended\",\r\n    TraceSeverity.Information,\r\n    {\r\n        clientRunId: varWeatherFlowRunId,\r\n        flowName: \"ap-telem-pp-weather-flow\"\r\n    }\r\n);\r\n\r\nNotify(\"Flow run\")",
+            "InvariantScript": "Set(varWeatherFlowRunId, Text(GUID()));\r\n\r\nTrace(\r\n    \"weather-flow.started\",\r\n    TraceSeverity.Information,\r\n    {\r\n        clientRunId: varWeatherFlowRunId,\r\n        flowName: \"ap-telem-pp-weather-flow\"\r\n    }\r\n);\r\n\r\nPatch('app-telem-weathers', Defaults('app-telem-weathers'), {crf6e_city: \"Unknown\", crf6e_weather: \"Unknown\", crf6e_id: varWeatherFlowRunId});\r\n\r\nTrace(\r\n    \"weather-flow.ended\",\r\n    TraceSeverity.Information,\r\n    {\r\n        clientRunId: varWeatherFlowRunId,\r\n        flowName: \"ap-telem-pp-weather-flow\"\r\n    }\r\n);\r\n\r\nNotify(\"Flow run\")",
             "RuleProviderType": "User"
           }
         ],

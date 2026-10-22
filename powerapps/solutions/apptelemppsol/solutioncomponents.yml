@@ -4,7 +4,6 @@ SolutionComponents:
   - '@path': /appmodulesitemaps/crf6e_apptelemppmodapp
   - '@path': /canvasapps/crf6e_apptelemcanvappweather_c88cd
   - '@path': /connectionreferences/crf6e_sharedcommondataserviceforapps_d81c3
-  - '@path': /connectionreferences/new_sharedmsnweather_956a6
   - '@path': /entities/crf6e_apptelemweather
   - '@path': /entities/crf6e_apptelemweather/attributes/createdby.yml
   - '@path': /entities/crf6e_apptelemweather/attributes/createdon.yml
