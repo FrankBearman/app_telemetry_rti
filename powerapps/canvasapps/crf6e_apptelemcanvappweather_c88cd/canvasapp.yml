@@ -21,7 +21,7 @@ CanvasApp:
     '@xsi:nil': true
     '@xmlns:xsi': http://www.w3.org/2001/XMLSchema-instance
   AuthorizationReferences: '[]'
-  ConnectionReferences: '{"14d5ec0c-c98a-41e7-8d04-78b05ef5b246":{"id":"/providers/microsoft.powerapps/apis/shared_commondataserviceforapps","displayName":"Microsoft Dataverse","iconUri":"https://static.powerapps.com/resource/ppcr/releases/v1.0.1831/1.0.1831.5064/commondataserviceforapps/icon.png","dataSources":["app-telem-weathers"],"dependencies":[],"dependents":[],"parameterHints":{},"parameterHintsV2":{},"isOnPremiseConnection":false,"bypassConsent":false,"dataSets":{},"apiTier":"Premium","authenticationType":"Oauth"}}'
+  ConnectionReferences: '{"62aa82e1-2d7f-4450-a745-89263548e420":{"id":"/providers/microsoft.powerapps/apis/shared_logicflows","displayName":"Logic flows","iconUri":"https://static.powerapps.com/resource/ppcr/releases/v1.0.1827/1.0.1827.4908/logicflows/icon.png","dataSources":["ap-telem-pp-flow-weather"],"dependencies":["50574e79-b158-4e3c-b0c9-427af4f51fdd","14d5ec0c-c98a-41e7-8d04-78b05ef5b246"],"dependents":[],"parameterHints":{"workflowName":{"value":"496e1e2f-3318-4f67-a2c6-50159eda7877"},"workflowEntityId":{"value":"7b7a9113-45c6-f111-aaaf-000d3a343828"},"workflowDisplayName":{"value":"ap-telem-pp-flow-weather"},"50574e79-b158-4e3c-b0c9-427af4f51fdd":{"value":"shared_msnweather"},"14d5ec0c-c98a-41e7-8d04-78b05ef5b246":{"value":"shared_commondataserviceforapps"}},"parameterHintsV2":{"workflowName":{"value":"496e1e2f-3318-4f67-a2c6-50159eda7877"},"workflowEntityId":{"value":"7b7a9113-45c6-f111-aaaf-000d3a343828"},"workflowDisplayName":{"value":"ap-telem-pp-flow-weather"},"shared_msnweather":{"value":"50574e79-b158-4e3c-b0c9-427af4f51fdd"},"shared_commondataserviceforapps":{"value":"14d5ec0c-c98a-41e7-8d04-78b05ef5b246"}},"isOnPremiseConnection":false,"bypassConsent":false,"dataSets":{},"apiTier":"Standard","actions":["Run"]},"50574e79-b158-4e3c-b0c9-427af4f51fdd":{"id":"/providers/microsoft.powerapps/apis/shared_msnweather","displayName":"MSN Weather","iconUri":"https://static.powerapps.com/resource/ppcr/releases/v1.0.1827/1.0.1827.4902/msnweather/icon.png","dataSources":[],"dependencies":[],"dependents":["62aa82e1-2d7f-4450-a745-89263548e420"],"parameterHints":{},"parameterHintsV2":{},"isOnPremiseConnection":false,"bypassConsent":false,"dataSets":{},"apiTier":"Standard"},"14d5ec0c-c98a-41e7-8d04-78b05ef5b246":{"id":"/providers/microsoft.powerapps/apis/shared_commondataserviceforapps","displayName":"Microsoft Dataverse","iconUri":"https://static.powerapps.com/resource/ppcr/releases/v1.0.1831/1.0.1831.5064/commondataserviceforapps/icon.png","dataSources":[],"dependencies":[],"dependents":["62aa82e1-2d7f-4450-a745-89263548e420"],"parameterHints":{},"parameterHintsV2":{},"isOnPremiseConnection":false,"bypassConsent":false,"dataSets":{},"apiTier":"Premium","authenticationType":"Oauth"}}'
   DatabaseReferences: '{}'
   AppComponents: '[]'
   AppComponentDependencies: '[]'
@@ -33,7 +33,7 @@ CanvasApp:
     '@xsi:nil': true
     '@xmlns:xsi': http://www.w3.org/2001/XMLSchema-instance
   IntroducedVersion: 1.0
-  CdsDependencies: '{"cdsdependencies":[]}'
+  CdsDependencies: '{"cdsdependencies":[{"dependencyid":"7b7a9113-45c6-f111-aaaf-000d3a343828","componenttype":29,"componenttypeplatformname":"Workflow"}]}'
   IsCustomizable: 1
   BackgroundImageUri: /canvasapps/crf6e_apptelemcanvappweather_c88cd/crf6e_apptelemcanvappweather_c88cd_BackgroundImageUri
   DocumentUri: /canvasapps/crf6e_apptelemcanvappweather_c88cd/crf6e_apptelemcanvappweather_c88cd_DocumentUri.msapp

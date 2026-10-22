@@ -3,6 +3,9 @@ RootComponents:
   - '@type': 1
     '@schemaName': crf6e_apptelemweather
     '@behavior': 0
+  - '@type': 29
+    '@id': '{7b7a9113-45c6-f111-aaaf-000d3a343828}'
+    '@behavior': 0
   - '@type': 62
     '@schemaName': crf6e_apptelemppmodapp
     '@behavior': 0
