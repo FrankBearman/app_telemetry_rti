@@ -1,7 +1,7 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-  Packs powerapps/ (Dataverse Git-integration YAML format) into a managed (default) or unmanaged (powerPlatform.managed = false) solution and imports it
+  Packs powerapps/ (classic `pac solution unpack` format) into a managed (default) or unmanaged (powerPlatform.managed = false) solution and imports it
   into the customer's Power Platform environment.
 
   Needs the Power Platform CLI (pac) on PATH and a service principal registered as an application
@@ -38,18 +38,32 @@ $connectionString = $azure.appInsightsConnectionString
 if ($connectionString -notmatch 'InstrumentationKey=([0-9a-fA-F-]{36})') { throw 'Unexpected Application Insights connection string format.' }
 $instrumentationKey = $Matches[1]
 
+# The Canvas app ships as a packed .msapp: unpack, patch the two App Insights files, repack in place.
 $patched = 0
-Get-ChildItem (Join-Path $stage 'canvasapps') -Recurse -Filter Properties.json -ErrorAction SilentlyContinue | ForEach-Object {
-    $text = Get-Content $_.FullName -Raw
-    if ($text -match '"ConnectionString"\s*:') {
-        $text = [regex]::Replace($text, '("ConnectionString"\s*:\s*)"[^"]*"', { param($m) $m.Groups[1].Value + (ConvertTo-Json $connectionString) })
-        $text = [regex]::Replace($text, '("InstrumentationKey"\s*:\s*)"[^"]*"', { param($m) $m.Groups[1].Value + '"' + $instrumentationKey + '"' })
-        Set-Content $_.FullName $text -Encoding utf8 -NoNewline
+Get-ChildItem (Join-Path $stage 'CanvasApps') -Filter *.msapp -ErrorAction SilentlyContinue | ForEach-Object {
+    $msapp = $_.FullName
+    $src = Join-Path $outDir "canvas-src-$($_.BaseName)"
+    if (Test-Path $src) { Remove-Item $src -Recurse -Force }
+    pac canvas unpack --msapp $msapp --sources $src | Out-Null
+    if ($LASTEXITCODE) { throw "pac canvas unpack failed for $msapp." }
+    $keyFile = Join-Path $src 'AppInsightsKey.json'
+    $manifest = Join-Path $src 'CanvasManifest.json'
+    if ((Test-Path $keyFile) -and (Test-Path $manifest)) {
+        $k = Get-Content $keyFile -Raw
+        $k = [regex]::Replace($k, '("InstrumentationKey"\s*:\s*)"[^"]*"', { param($m) $m.Groups[1].Value + '"' + $instrumentationKey + '"' })
+        Set-Content $keyFile $k -Encoding utf8 -NoNewline
+        $m = Get-Content $manifest -Raw
+        $m = [regex]::Replace($m, '("ConnectionString"\s*:\s*)"[^"]*"', { param($x) $x.Groups[1].Value + (ConvertTo-Json $connectionString) })
+        Set-Content $manifest $m -Encoding utf8 -NoNewline
+        $newMsapp = "$msapp.new"
+        $packOut = pac canvas pack --sources $src --msapp $newMsapp 2>&1
+        if ($LASTEXITCODE) { $packOut | Out-Host; throw "pac canvas pack failed for $msapp." }
+        Move-Item $newMsapp $msapp -Force
         $patched++
     }
+    Remove-Item $src -Recurse -Force
 }
-Write-Host "Patched Application Insights settings in $patched Canvas app file(s)."
-
+Write-Host "Patched Application Insights settings in $patched Canvas app(s)."
 # powerPlatform.managed defaults to true; Dataverse cannot update a solution across modes.
 $managed = $true
 if ($null -ne $pp.managed) { $managed = [bool]$pp.managed }
