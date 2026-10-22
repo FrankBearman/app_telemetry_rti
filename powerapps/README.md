@@ -8,6 +8,8 @@
 2. It copies it to `out/<customer>/` and patches the Application Insights key in the canvas app's `Properties.json`.
 3. It runs `pac solution import`. Use `-PackOnly` to prepare the patched zip without importing.
 
+Only canvas apps whose `Properties.json` already contains a `ConnectionString` key are patched; others are skipped with a warning, and the script fails if none are patched. Model-driven apps and flows are not touched. Identity and secret setup is in the "Identities and secrets" section of [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).
+
 ## Updating the solution
 
 Export the solution from Power Platform (unmanaged for dev/test, managed for production), put the zip in `solutionpackage/` and remove the older zip. Managed vs unmanaged is fixed at export time and cannot be switched in place; delete the solution in the environment first.

@@ -10,6 +10,19 @@ One repo, three components, deployed per customer tenant from a config file.
 
 `scripts/Deploy-All.ps1 -Customer <code>` runs all three. `azure-pipelines.yml` runs the same scripts as stages.
 
+## Order of operations
+
+The Key Vault is created by the Azure stage, so the Power Platform secret can only be stored after the first Azure run.
+
+1. Create `customers/<code>.json` from `customers/_template.json` and push it.
+2. In the customer tenant, create the Power Platform app registration, add it as an application user with System Administrator, and create a client secret.
+3. Create the Azure DevOps service connection and a variable group containing `Service_Connection`.
+4. Run the Azure stage (creates App Insights, Log Analytics and the Key Vault).
+5. Store the PP client secret **Value** in the vault as `pp-client-secret`, and grant the service connection's enterprise-application object ID "Key Vault Secrets User" on the vault.
+6. Run the Fabric and Power Platform stages (or the whole pipeline again).
+
+See "Identities and secrets" below for what each identity needs.
+
 ## Structure
 
 ```mermaid

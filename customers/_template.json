@@ -36,6 +36,7 @@
     "environmentUrl": "https://contoso.crm11.dynamics.com",
     "applicationId": "00000000-0000-0000-0000-000000000000",
     "solutionName": "apptelemppsol",
+    "clientSecretName": "pp-client-secret",
     "connectionReferences": [
       {
         "logicalName": "crf6e_sharedcommondataserviceforapps_d81c3",
