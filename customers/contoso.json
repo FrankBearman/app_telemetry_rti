@@ -34,7 +34,7 @@
   "powerPlatform": {
     "deploy": true,
     "environmentUrl": "https://orgd775fbfd.crm.dynamics.com",
-    "applicationId": "00000000-0000-0000-0000-000000000000",
+    "applicationId": "9aaea9f1-7223-4872-a555-83649f79e2c8",
     "solutionName": "apptelemppsol",
     "connectionReferences": [
       {
