@@ -13,9 +13,11 @@ parameters:
   - name: customer
     displayName: Customer code (file name in customers/, without .json)
     type: string
+    default: "contoso"
   - name: serviceConnection
     displayName: Azure DevOps service connection for the customer's tenant
     type: string
+    default: $(Service_Connection)
   - name: deployAzure
     type: boolean
     default: true
