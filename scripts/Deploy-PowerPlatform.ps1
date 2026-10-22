@@ -1,8 +1,4 @@
-az role assignment create `
-  --assignee-object-id 452f9807-edd0-439c-8952-871a6b6e0529 `
-  --assignee-principal-type ServicePrincipal `
-  --role "Key Vault Secrets User" `
-  --scope /subscriptions/835c0954-8dd3-4099-8644-daff1323d1ec/resourceGroups/rg-apptelem-contoso/providers/Microsoft.KeyVault/vaults/apptelcon-kv-24ytcdtmvrv#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
   Takes the exported solution zip powerapps\solutionpackage\<solutionName>*.zip, patches the Application Insights
@@ -72,7 +68,11 @@ try {
                 $e = $app.CreateEntry('Properties.json')
                 $w = New-Object IO.StreamWriter($e.Open(), $utf8); $w.Write($new); $w.Dispose()
                 $patched++
+            } else {
+                Write-Warning "Skipped $($appEntry.FullName): Properties.json has no ConnectionString, so it was not patched."
             }
+        } else {
+            Write-Warning "Skipped $($appEntry.FullName): no Properties.json found."
         }
         $app.Dispose()
         $name = $appEntry.FullName
