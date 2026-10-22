@@ -1,0 +1,29 @@
+MissingDependencies:
+  MissingDependency:
+  - Required:
+      '@type': 61
+      '@schemaName': msdyn_/Images/AppModule_Default_Icon.png
+      '@displayName': msdyn_/Images/AppModule_Default_Icon.png
+      '@solution': AppModuleWebResources (2.5)
+      package:
+        '@appName': AppModule Web Resources Package
+        '@version': 2.5
+        '#text': AppModuleWebResources (2.5)
+    Dependent:
+      '@type': 80
+      '@schemaName': crf6e_apptelemppmodapp
+      '@displayName': app-telem-pp-modapp
+  - Required:
+      '@type': SettingDefinition
+      '@displayName': AppChannel
+      '@solution': msdyn_AppFrameworkInfraExtensions (1.0.0.20)
+      '@id.uniquename': AppChannel
+      package:
+        '@appName': PowerAppsAppFramework Package
+        '@version': 1.0.0.26
+        '#text': PowerAppsAppFramework_Anchor (1.0.0.26)
+    Dependent:
+      '@type': AppSetting
+      '@displayName': parentappmoduleid.uniquename=crf6e_apptelemppmodapp,settingdefinitionid.uniquename=AppChannel
+      '@id.parentappmoduleid.uniquename': crf6e_apptelemppmodapp
+      '@id.settingdefinitionid.uniquename': AppChannel

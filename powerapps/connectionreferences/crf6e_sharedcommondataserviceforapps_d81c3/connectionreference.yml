@@ -1,0 +1,8 @@
+connectionreference:
+  '@connectionreferencelogicalname': crf6e_sharedcommondataserviceforapps_d81c3
+  connectionreferencedisplayname: Microsoft Dataverse apptelemppsol-d81c3
+  connectorid: /providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps
+  iscustomizable: 1
+  promptingbehavior: 0
+  statecode: 0
+  statuscode: 1

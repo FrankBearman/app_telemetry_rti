@@ -1,9 +1,0 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<EntityRelationships xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <EntityRelationship Name="business_unit_crf6e_apptelemweather" />
-  <EntityRelationship Name="lk_crf6e_apptelemweather_createdby" />
-  <EntityRelationship Name="lk_crf6e_apptelemweather_modifiedby" />
-  <EntityRelationship Name="owner_crf6e_apptelemweather" />
-  <EntityRelationship Name="team_crf6e_apptelemweather" />
-  <EntityRelationship Name="user_crf6e_apptelemweather" />
-</EntityRelationships>
