@@ -27,6 +27,9 @@ flowchart LR
 | [`azure/infra/main.bicep`](../azure/infra/main.bicep) | Deploys both modules when `enableRealtime = true` |
 | [`customers/_template.json`](../customers/_template.json) | `azure.realtime` config block |
 | [`fabric/realtime/hotpath_setup.kql`](../fabric/realtime/hotpath_setup.kql) | Idempotent KQL: raw table, JSON mapping, typed tables, update policies, retention/caching, `WeatherFlowRuns()`, mirroring |
+| [`azure/infra/streaming-access.bicep`](../azure/infra/streaming-access.bicep) | Separate administrator deployment: Network Contributor for the workspace identity, scoped only to the streaming VNet |
+| [`scripts/Deploy-StreamingAccess.ps1`](../scripts/Deploy-StreamingAccess.ps1) | Resolves the identity and reuses an existing identical VNet assignment before deploying the bootstrap |
+| [`fabric/app_telemetry_eventstream.Eventstream/`](../fabric/app_telemetry_eventstream.Eventstream/) | Exported working Extended Event Hubs source, default stream, Direct ingestion destination, and Eventstream properties; no credentials |
 
 ## Prerequisites
 
@@ -126,7 +129,7 @@ the gateway itself and the credential-bearing Fabric connection are created in F
      `<namespace>.servicebus.windows.net` hostname.
    - An administrator must grant the Fabric workspace identity **Network Contributor**
      on the VNet after the Fabric stage provisions the identity. The deployment
-     intentionally does not create Azure role assignments, so the ADO principal
+     intentionally does not create streaming Azure role assignments, so the ADO principal
      does not need `roleAssignments/write`.
    - Event Hub network rules with **default deny** and the **trusted Microsoft
      services exception enabled**. General public client traffic is denied, but
@@ -147,7 +150,24 @@ the gateway itself and the credential-bearing Fabric connection are created in F
    previously created network resources or role assignment.
 4. Before creating the gateway, ensure the Fabric workspace identity has
    **Network Contributor** on this VNet. For Contoso, its service-principal object
-   ID is `a493ff23-ef73-40a4-bbdf-7cf81df99cdb`. In Azure Portal, open the VNet's
+   ID is `a493ff23-ef73-40a4-bbdf-7cf81df99cdb`, not application ID
+   `8cae18ff-7484-4a76-9bc8-1ee2153ee06b`. Prefer the separate Bicep bootstrap:
+
+   ```powershell
+   # Use a customer administrator login with roleAssignments/write on the VNet.
+   .\scripts\Ensure-FabricWorkspaceIdentity.ps1 -Customer contoso
+   .\scripts\Deploy-StreamingAccess.ps1 -Customer contoso -WhatIf
+   .\scripts\Deploy-StreamingAccess.ps1 -Customer contoso
+   ```
+
+   The helper checks the tenant/subscription, reads the existing workspace
+   identity, and reuses an existing identical VNet role-assignment name. This
+   avoids `RoleAssignmentExists` for a grant originally created in the portal.
+   It does not recreate the VNet, grant subscription-wide access, or run from
+   `Deploy-All.ps1`/the normal ADO stages. Contoso already has this grant; no
+   additional permission is needed there.
+
+   Portal alternative: open the VNet's
    **Access control (IAM)**, add a role assignment for **Network Contributor**, and
    select that service principal. This is a one-time administrator action.
 5. In Fabric **Manage connections and gateways -> Streaming virtual network data
@@ -166,9 +186,10 @@ the gateway itself and the credential-bearing Fabric connection are created in F
    Eventstream and verify actual ingestion, rather than treating a saved
    connection as proof that it works.
 
-Deployment does **not** create a Fabric gateway, a Fabric connection, or an
-Eventstream definition that is absent from Git. After creating and publishing
-the Eventstream, sync it to Git and configure its promotion as described below.
+Deployment does **not** create the streaming Fabric gateway, store its SAS
+credential, or grant gateway-user permissions. These remain customer bootstrap
+steps. The Eventstream topology itself is now in Git and is promoted after
+the Eventhouse schema, using the customer's saved connection ID.
 
 References: [Streaming VNet gateway creation](https://learn.microsoft.com/fabric/real-time-intelligence/event-streams/create-manage-streaming-virtual-network-data-gateways),
 [streaming connector private networking prerequisites](https://learn.microsoft.com/fabric/real-time-intelligence/event-streams/streaming-connector-private-network-support-guide),
@@ -176,18 +197,35 @@ and [Log Analytics export destination networking](https://learn.microsoft.com/az
 
 ## Step 2: Create the KQL objects
 
-Open a KQL queryset on the Eventhouse database. Paste [`hotpath_setup.kql`](../fabric/realtime/hotpath_setup.kql) and run it. It is idempotent and creates the following objects:
+`deploy_fabric.py` appends the commands from
+[`hotpath_setup.kql`](../fabric/realtime/hotpath_setup.kql) to the **staged**
+KQL database's `DatabaseSchema.kql` when `azure.realtime.enabled` is true and
+`KQLDatabase` is in scope. The `.execute database script` wrapper is removed
+because schema publication executes the management commands itself. The source
+schema and setup script are not rewritten or duplicated.
+
+This creates the following objects before publishing the Eventstream:
 
 - `RawAppTelemetry(records: dynamic)` plus the JSON mapping `RawAppTelemetryMapping` (`$.records`). Raw data is retained for 1 day.
 - Typed tables `AppRequestsRT`, `AppTracesRT`, and `AppExceptionsRT`. Update policies (`mv-expand records`, filtered by `Type`) fill them on ingestion. They have a 30-day hot cache.
 - `WeatherFlowRuns(lookback=24h)`, the streaming equivalent of the weather-flow Dataflow KQL.
 - A mirroring policy (OneLake availability) on the three typed tables. See Step 5.
 
-If the queryset rejects `.execute database script`, run the commands inside the `<|` block one at a time, in order.
+For manual recovery, or when using Fabric Git integration directly rather than
+the deployment script, open a KQL queryset on the database and run the setup
+script. If the queryset rejects `.execute database script`, run the commands
+inside the `<|` block one at a time, in order. Re-running the setup preserves
+existing data; it does not replay events missed before activation.
 
 ## Step 3: Create the Eventstream
 
-In the Fabric workspace, select **New item → Eventstream**, for example `app_telemetry_es`.
+Normal deployment now publishes the repository's `app_telemetry_eventstream`
+after the database objects. The saved definition includes the mapping name and
+data connection name required by Direct ingestion. Inspect the resulting live
+source/destination status; do not create a second Eventstream for an existing
+deployment.
+
+For a new manual setup or destination recovery, use these steps:
 
 1. **Source → Azure Event Hubs** (use **Extended features mode** and the streaming VNet gateway from Step 1a for private connectivity). Create a new connection with these settings:
    - Namespace: `eventHubNamespaceName` from Step 1. Event Hub: `appinsights-export`.
@@ -210,19 +248,93 @@ In the Fabric workspace, select **New item → Eventstream**, for example `app_t
 
 ### Deploying the Eventstream from ADO
 
-Build the Eventstream once in the **dev** workspace, then let `Deploy-Fabric.ps1` promote it:
+The working topology was captured with the supported
+[Get Eventstream Definition API](https://learn.microsoft.com/rest/api/fabric/eventstream/items/get-eventstream-definition).
+Its `eventstream.json` and `eventstreamProperties.json` are preserved. The API
+returned a zero logical ID in `.platform`; the repository uses the existing
+Eventstream item ID as a stable, nonzero logical ID. Credentials are held in
+Fabric, not in any of these files.
 
-1. Create the Eventstream in dev as described above, then commit it to Git through Fabric Git integration. This produces `fabric/<name>.Eventstream/` with `eventstream.json`.
-2. In `scripts/deploy_fabric.py`, set these constants from that `eventstream.json`:
-   - `SOURCE_EVENTHUB_CONNECTION_ID`
-   - `SOURCE_EVENTHOUSE_ID`
-   - `SOURCE_KQL_DATABASE_ID`
-   
-   At deploy time these values are replaced: the connection ID with the customer value, and the Eventhouse and KQL database IDs with `$items.Eventhouse/KQLDatabase.<name>.$id`.
-3. In the **target** tenant, create a Fabric cloud connection of type Azure Event Hubs (Shared Access Key, rule `fabric-listen`). Put its ID in `fabric.realtime.eventHubConnectionId` in the customer JSON. Connections hold credentials, so they cannot be created from Git.
-4. Keep `"Eventstream"` in `fabric.itemTypes`. `Get-CustomerConfig.ps1` refuses to deploy an Eventstream without a valid connection ID.
+1. In the target tenant, create the streaming gateway and **[vNet]** Azure Event
+   Hubs Extended connection from Step 1a. Enter the hub-scoped Listen-only
+   `fabric-listen` SAS key directly into Fabric. Never put it in customer JSON,
+   Bicep parameters, logs, or Git.
+2. Set `fabric.realtime.eventHubConnectionId` to the saved connection GUID (not
+   the gateway ID or source node ID). Enable `azure.realtime.enabled` and include
+   `Eventhouse`, `KQLDatabase`, and `Eventstream` in `fabric.itemTypes`. The
+   template leaves Eventstream out until a connection exists.
+3. Run `Deploy-Fabric.ps1 -Customer <code> -Bootstrap` for a new workspace.
+   Publication order is foundation/schema, Eventstream, then (normal deployment
+   only) reporting. Bootstrap excludes shortcuts, semantic models, and reports,
+   **not** streaming. Establish the network grant/gateway/connection before
+   requesting an Eventstream publication.
+4. Staging replaces both exported workspace IDs with `$workspace.$id`, the
+   source connection with the customer connection ID, and destination `itemId`
+   with `$items.KQLDatabase.app_telemetry_eventhouse.$id`. Despite its name,
+   the working export's `itemId` references the **KQL database**, not the
+   Eventhouse parent. Preserve this exported binding. The consumer group is
+   read from Azure outputs rather than assumed to be `fabric-eventstream`.
+5. Generate fresh telemetry and verify Step 5. Once Delta files exist, enable
+   the shortcuts and run normal deployment to publish shortcuts/reporting.
+   In ADO select only the required stages; leave **deployPowerPlatform=false**
+   when working on telemetry infrastructure.
+
+Contoso's non-secret connection GUID is recorded in its customer JSON. Source
+IDs remain promotion anchors, not credentials. If recapturing the topology,
+update the matching `SOURCE_EVENTHUB_CONNECTION_ID`,
+`SOURCE_EVENTSTREAM_WORKSPACE_ID`, and `SOURCE_KQL_DATABASE_ID` constants in
+`deploy_fabric.py` together. Keep node IDs and the Direct ingestion connection
+name stable for the existing deployment; changing them can create a different
+consumer/data connection.
 
 Activator rules are still created manually (Step 4).
+
+### Verified Contoso configuration and troubleshooting
+
+On 23 October 2026 the private path was verified with real Weather Flow traffic:
+`RawAppTelemetry` contained **2 batches**, `AppTracesRT` contained **11 rows**,
+and the Lakehouse `dbo.AppTracesRT` shortcut displayed the same **11 rows**,
+including `weather-flow.started` and `weather-flow.ended`. These are a historical
+verification snapshot, not expected fixed counts. Requests/exceptions were zero
+because the test produced traces.
+
+- Workspace: `app-telem_testdeploy`; identity object ID is shown in Step 1a.
+- VNet/subnet: `apptelcon-streaming-vnet` / `streaming-connectors` (Central US).
+- Hub: `apptelcon-ehns-24ytcdtmvrvjg` / `appinsights-export` (UK South).
+- Gateway: `[Streaming VNET] apptelcon-streaming-vnet-streaming-connectors`.
+- Connection: `[vNet] apptelem-contoso-eventhub-private`.
+- Source: `azure-event-hub`, Extended mode, `Latest`, `fabric-eventstream`.
+- Destination label: `contoso-raw-telemetry`; the exported internal data connection
+  name is `app_telemetry_eventstream_lku6ra`. Do not confuse the label with the
+  internal connection name.
+- Table/mapping: `RawAppTelemetry` / `RawAppTelemetryMapping`.
+
+| Symptom | Resolution / check |
+|---|---|
+| `InvalidNetworkRuleSetUpdate` with empty rules and default deny | Keep the connector subnet's Event Hub service endpoint and allow rule, applied after VNet creation. Do not broadly allow public clients or disable the trusted-service producer path. |
+| `roleAssignments/write` denied for ADO | Use the separate administrator bootstrap, not additional role assignments in the normal Azure deployment. |
+| `InvalidServiceNameOnDelegation` | Use the full delegation `Microsoft.MessagingConnectors/connectors`. |
+| Source permission/connector validation error | Confirm the workspace **object ID** has VNet-scoped Network Contributor. Allow RBAC propagation, then activate the individual source again. Verify Runtime logs report connector/task `RUNNING`. |
+| Source Active but no events | Generate fresh traffic after activation; inspect source incoming/outgoing counts and connector errors. `Latest` does not prove historical data will be replayed. |
+| Destination published but not configured / no mapping shown | Open Configure in Live mode. Wait for a real sample, choose JSON and existing `RawAppTelemetryMapping`, Finish, verify successful data connection creation. |
+| Raw rows present but no typed rows | Inspect `records`, `Type`, and update policies; workspace export field names differ from the classic App Insights API. Check ingestion failures before changing mappings. |
+| Traces present but Requests shortcut empty | Check `AppTracesRT`; Weather Flow emits traces, not necessarily request/exception records. |
+| Typed rows present but shortcut empty | Verify mirroring policy/status and wait for the first Delta export (target latency 5 minutes). Mirroring does not backfill data predating policy activation. |
+
+Verify the actual data rather than just an Active status:
+
+```kusto
+RawAppTelemetry | count
+AppTracesRT | count
+WeatherFlowRuns(1h)
+.show ingestion failures | where FailedOn > ago(1h)
+.show table AppTracesRT policy update
+.show table AppTracesRT operations mirroring-status
+```
+
+Run each query/command separately. Finally open the Lakehouse's `dbo.AppTracesRT`
+shortcut and inspect actual rows; `Requests` and `RequestsCustomDimensions` are
+separate batch notebook tables and are not the streaming verification target.
 
 Use direct ingestion with the KQL mapping, not Eventstream's "event processing before ingestion". This keeps all the nested-JSON shaping in update policies inside the database, so there is one source of truth and nothing to re-map in the UI.
 

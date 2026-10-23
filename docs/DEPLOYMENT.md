@@ -20,7 +20,7 @@ The Key Vault is created by the Azure stage, so the Power Platform secret can on
 4. Run the Azure stage (creates App Insights, Log Analytics and the Key Vault).
 5. Store the PP client secret **Value** in the vault as `pp-client-secret`, and grant the service connection's enterprise-application object ID "Key Vault Secrets User" on the vault.
 6. Run the Fabric stage with **fabricBootstrap = true** for a new workspace. This publishes infrastructure without shortcuts, semantic models, or reports. Power Platform can deploy independently.
-7. Complete the [real-time hot-path setup](./REALTIME_HOTPATH.md): run the KQL setup, configure/publish the Eventstream, and wait for the first OneLake-mirrored Delta files.
+7. Complete the [real-time hot-path bootstrap](./REALTIME_HOTPATH.md): grant the workspace identity network access with the separate administrator Bicep deployment, create the streaming gateway/credential-bearing connection, and record its non-secret connection ID before publishing Eventstream. Fabric deployment now stages the KQL setup and the exported topology automatically. Generate fresh traffic and wait for the first OneLake-mirrored Delta files. If the connection is not ready, omit `Eventstream` from `fabric.itemTypes` for the initial infrastructure-only pass, then add it and rerun bootstrap.
 8. Enable `fabric.realtime.lakehouseShortcuts` with `AppRequestsRT` included, then run the Fabric stage with **fabricBootstrap = false**. Shortcuts must publish successfully before the semantic model is imported.
 
 See "Identities and secrets" below for what each identity needs.
@@ -40,7 +40,9 @@ be capacity-assigned; this helper does not create a workspace.
 
 The Azure stage provisions the delegated gateway subnet, separate
 private endpoint subnet and DNS. It registers `Microsoft.MessagingConnectors` if
-needed. The Azure deployment identity does not need `roleAssignments/write`.
+needed. The streaming resource deployment no longer creates network role
+assignments; separate configured Key Vault role assignments still require their
+usual RBAC permissions.
 After the Fabric stage provisions the workspace identity, an Azure administrator
 must grant that identity **Network Contributor** on the deployed VNet. Create the streaming VNet
 gateway and its Event Hubs **Extended features** connection in Fabric afterwards;
@@ -57,6 +59,36 @@ Selected-networks mode also allows the dedicated connector subnet through a
 by Azure. The private-network module applies the firewall after creating this
 subnet, and the data export deployment waits for that module.
 See [Step 1a](./REALTIME_HOTPATH.md#step-1a-private-event-hub-connectivity-and-streaming-vnet-gateway).
+
+Use `scripts/Deploy-StreamingAccess.ps1 -Customer <code> -WhatIf`, then the same
+command without `-WhatIf`, under the customer administrator login. It deploys
+`azure/infra/streaming-access.bicep`, reads the actual workspace principal ID,
+and reuses an existing identical VNet role assignment. This is deliberately
+separate from the normal stages: it requires `roleAssignments/write` on the
+VNet, while ordinary streaming resource deployment does not. Credentials
+remain in Fabric; no Event Hub SAS keys are exported to source or outputs.
+
+The repository now includes the Eventstream definition. When it is in scope,
+configuration validation requires realtime enabled, an existing Fabric
+connection GUID, and Eventhouse/KQLDatabase in scope. Publication is split
+into foundation/schema, Eventstream, then reporting. This captures the working
+raw mapping, update policies, and mirroring without asking operators to paste
+KQL during the normal scripted deployment. Use Python **3.11** as in ADO;
+the current `fabric-cicd` package does not support Python 3.15.
+
+Offline regression checks (no Azure/Fabric writes):
+
+```powershell
+python -m unittest discover -s scripts -p test_deploy_fabric.py -v
+.\scripts\Test-StreamingAccess.ps1
+```
+
+Run the Python checks in a Python 3.11 environment with
+`scripts/requirements.txt` installed. They cover staged KQL, actual
+`fabric-cicd` binding resolution with mocked workspace metadata, validation,
+and publish order. The PowerShell checks mock Azure/Fabric to verify VNet grant
+preview/adoption and customer configuration guards. Bicep compilation and these
+offline tests do not constitute a live redeployment.
 
 ## Structure
 

@@ -1,0 +1,57 @@
+{
+  "sources": [
+    {
+      "id": "4a92b130-fb21-4fbd-88c1-0a74551141a1",
+      "name": "azure-event-hub",
+      "type": "AzureEventHubExtended",
+      "properties": {
+        "dataConnectionId": "a951cee1-43e0-4ec5-8023-cab7a2899113",
+        "consumerGroupName": "fabric-eventstream",
+        "startPosition": "Latest"
+      }
+    }
+  ],
+  "destinations": [
+    {
+      "id": "261495cb-2f29-4e07-9c2b-2cf5d4093b33",
+      "name": "contoso-raw-telemetry",
+      "type": "Eventhouse",
+      "properties": {
+        "dataIngestionMode": "DirectIngestion",
+        "workspaceId": "faa9dc33-4f71-4eb4-b815-0f4fd8662646",
+        "itemId": "1c401fb0-7b07-4e12-9c22-be709e106d9f",
+        "tableName": "RawAppTelemetry",
+        "connectionName": "app_telemetry_eventstream_lku6ra",
+        "mappingRuleName": "RawAppTelemetryMapping"
+      },
+      "inputNodes": [
+        {
+          "name": "app_telemetry_eventstream-stream"
+        }
+      ],
+      "inputSchemas": [
+        {
+          "name": "app_telemetry_eventstream-stream",
+          "schema": {
+            "columns": []
+          }
+        }
+      ]
+    }
+  ],
+  "streams": [
+    {
+      "id": "8150c844-0442-4add-9af1-4390fb892c06",
+      "name": "app_telemetry_eventstream-stream",
+      "type": "DefaultStream",
+      "properties": {},
+      "inputNodes": [
+        {
+          "name": "azure-event-hub"
+        }
+      ]
+    }
+  ],
+  "operators": [],
+  "compatibilityLevel": "1.1"
+}

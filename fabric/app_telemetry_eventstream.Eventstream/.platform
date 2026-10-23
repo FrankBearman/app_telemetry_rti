@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Eventstream",
+    "displayName": "app_telemetry_eventstream"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "aba7228d-e3c4-4e8c-b9b5-f112162ccb66"
+  }
+}

@@ -47,7 +47,7 @@
       "Eventstream"
     ],
     "realtime": {
-      "eventHubConnectionId": "",
+      "eventHubConnectionId": "a951cee1-43e0-4ec5-8023-cab7a2899113",
       "lakehouseShortcuts": {
         "enabled": true,
         "tables": ["AppRequestsRT", "AppTracesRT", "AppExceptionsRT"]

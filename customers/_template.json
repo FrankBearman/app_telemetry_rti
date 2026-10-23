@@ -43,8 +43,7 @@
       "SemanticModel",
       "Eventhouse",
       "KQLDatabase",
-      "KQLQueryset",
-      "Eventstream"
+      "KQLQueryset"
     ],
     "realtime": {
       "eventHubConnectionId": "",

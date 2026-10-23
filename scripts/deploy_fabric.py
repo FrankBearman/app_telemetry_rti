@@ -20,6 +20,7 @@ import argparse
 import json
 import shutil
 from pathlib import Path
+from uuid import UUID
 
 import yaml
 from azure.identity import AzureCliCredential
@@ -37,12 +38,11 @@ SOURCE_LAKEHOUSE_ID = "e8d8f813-dff6-4223-8857-e2ccdf0c2381"
 LAKEHOUSE_NAME = "app_telemtry_lh_bronze"
 REPORTING_ITEM_TYPES = {"SemanticModel", "Report"}
 
-# Real-time hot path. Fill these in from the Git-synced dev Eventstream definition
-# (fabric/<name>.Eventstream/eventstream.json) after it is created in the dev workspace.
-# Empty values are skipped, so deployments work before the Eventstream exists.
-SOURCE_EVENTHUB_CONNECTION_ID = ""
-SOURCE_EVENTHOUSE_ID = ""
-SOURCE_KQL_DATABASE_ID = ""
+# Non-secret bindings in the exported, working Eventstream definition.
+SOURCE_EVENTHUB_CONNECTION_ID = "a951cee1-43e0-4ec5-8023-cab7a2899113"
+SOURCE_EVENTSTREAM_WORKSPACE_ID = "faa9dc33-4f71-4eb4-b815-0f4fd8662646"
+SOURCE_KQL_DATABASE_ID = "1c401fb0-7b07-4e12-9c22-be709e106d9f"
+EVENTSTREAM_NAME = "app_telemetry_eventstream"
 EVENTHOUSE_NAME = "app_telemetry_eventhouse"
 KQL_DATABASE_NAME = "app_telemetry_eventhouse"
 SHORTCUT_KQL_DATABASE_TOKEN = "__KQL_DATABASE_ID__"
@@ -92,6 +92,37 @@ def inject_shortcuts(stage: Path, tables: list[str]) -> None:
     path.write_text(json.dumps(shortcuts, indent=2), encoding="utf-8")
 
 
+def configure_realtime(stage: Path, fabric: dict, azure: dict, *, enabled: bool) -> None:
+    if not enabled:
+        return
+    item_types = fabric["itemTypes"]
+    if "KQLDatabase" in item_types:
+        setup = (stage / "realtime" / "hotpath_setup.kql").read_text(encoding="utf-8")
+        marker = ".execute database script with (ContinueOnErrors = false) <|"
+        if setup.count(marker) != 1:
+            raise ValueError("hotpath_setup.kql must contain exactly one database-script header.")
+        commands = setup.split(marker, 1)[1].strip()
+        schema = stage / f"{EVENTHOUSE_NAME}.Eventhouse" / ".children" / f"{KQL_DATABASE_NAME}.KQLDatabase" / "DatabaseSchema.kql"
+        schema.write_text(schema.read_text(encoding="utf-8").rstrip() + "\n\n" + commands + "\n", encoding="utf-8")
+    if "Eventstream" in item_types:
+        if not {"Eventhouse", "KQLDatabase"}.issubset(item_types):
+            raise ValueError("Eventstream deployment requires Eventhouse and KQLDatabase in fabric.itemTypes.")
+        connection_id = fabric.get("realtime", {}).get("eventHubConnectionId", "")
+        try:
+            valid_connection = isinstance(connection_id, str) and UUID(connection_id).int != 0
+        except ValueError:
+            valid_connection = False
+        if not valid_connection:
+            raise ValueError("fabric.realtime.eventHubConnectionId must be a nonzero connection GUID.")
+        consumer_group = azure.get("eventHubConsumerGroup")
+        if not consumer_group:
+            raise ValueError("Azure outputs must include eventHubConsumerGroup for Eventstream deployment.")
+        path = stage / f"{EVENTSTREAM_NAME}.Eventstream" / "eventstream.json"
+        topology = json.loads(path.read_text(encoding="utf-8"))
+        topology["sources"][0]["properties"]["consumerGroupName"] = consumer_group
+        path.write_text(json.dumps(topology, indent=2) + "\n", encoding="utf-8")
+
+
 def write_parameter_file(
     stage: Path, environment: str, app_insights_app_id: str, realtime: dict, *, publish_shortcuts: bool
 ) -> None:
@@ -115,7 +146,7 @@ def write_parameter_file(
     }
     optional = {
         SOURCE_EVENTHUB_CONNECTION_ID: realtime.get("eventHubConnectionId", ""),
-        SOURCE_EVENTHOUSE_ID: f"$items.Eventhouse.{EVENTHOUSE_NAME}.$id",
+        SOURCE_EVENTSTREAM_WORKSPACE_ID: "$workspace.$id",
         SOURCE_KQL_DATABASE_ID: f"$items.KQLDatabase.{KQL_DATABASE_NAME}.$id",
     }
     for find_value, replace_value in optional.items():
@@ -134,10 +165,12 @@ def write_parameter_file(
 def publish_workspace(fabric: dict, environment: str, stage: Path, *, bootstrap: bool) -> None:
     item_types = fabric["itemTypes"]
     reporting = [item_type for item_type in item_types if item_type in REPORTING_ITEM_TYPES]
-    infrastructure = [item_type for item_type in item_types if item_type not in REPORTING_ITEM_TYPES]
+    infrastructure = [item_type for item_type in item_types if item_type not in REPORTING_ITEM_TYPES | {"Eventstream"}]
     credential = AzureCliCredential()
     # Shortcut publication is a post-publish action. Finish that pass before importing models.
-    phases = [infrastructure] if bootstrap else [infrastructure, reporting]
+    streaming = ["Eventstream"] if "Eventstream" in item_types else []
+    # Create the raw table/mapping before a Direct ingestion destination can reference it.
+    phases = [infrastructure, streaming] if bootstrap else [infrastructure, streaming, reporting]
     for scope in phases:
         if scope:
             workspace = FabricWorkspace(
@@ -193,6 +226,10 @@ def main() -> None:
             SOURCE_APP_INSIGHTS_CLUSTER_URI: cluster_uri,
         },
     )
+    realtime_enabled = bool(config.get("azure", {}).get("realtime", {}).get("enabled"))
+    if "Eventstream" in fabric["itemTypes"] and not realtime_enabled:
+        raise ValueError("Remove Eventstream from fabric.itemTypes when azure.realtime.enabled is false.")
+    configure_realtime(stage, fabric, azure, enabled=realtime_enabled)
     if publish_shortcuts:
         inject_shortcuts(stage, shortcuts.get("tables", []))
         append_feature_flag("enable_shortcut_publish")

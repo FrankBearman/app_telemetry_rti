@@ -83,9 +83,18 @@ if ($network -and $network.enabled) {
 }
 $hasEventstream = @(Get-ChildItem (Join-Path $RepoRoot 'fabric') -Directory -Filter '*.Eventstream' -ErrorAction SilentlyContinue).Count -gt 0
 if ($hasEventstream -and $cfg.fabric.itemTypes -contains 'Eventstream') {
+    if (-not $rt.enabled) {
+        throw "$path : Remove Eventstream from fabric.itemTypes when azure.realtime.enabled is false."
+    }
     $conn = $cfg.fabric.realtime.eventHubConnectionId
-    if ([string]::IsNullOrWhiteSpace($conn) -or $conn -notmatch '^[0-9a-fA-F-]{36}$' -or $conn -match '^0{8}-') {
+    $connectionId = [guid]::Empty
+    if (-not [guid]::TryParseExact([string]$conn, 'D', [ref]$connectionId) -or $connectionId -eq [guid]::Empty) {
         throw "$path : fabric.realtime.eventHubConnectionId must be the GUID of the customer's Event Hub connection when an Eventstream is deployed."
+    }
+    foreach ($requiredType in @('Eventhouse', 'KQLDatabase')) {
+        if ($cfg.fabric.itemTypes -notcontains $requiredType) {
+            throw "$path : Eventstream deployment requires $requiredType in fabric.itemTypes."
+        }
     }
 }
 
