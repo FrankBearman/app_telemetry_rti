@@ -4,7 +4,7 @@ One repo, three components, deployed per customer tenant from a config file.
 
 | Component | Folder | Script | Mechanism |
 |---|---|---|---|
-| Azure (App Insights, Log Analytics, Key Vault) | `azure/infra` | `scripts/Deploy-Azure.ps1` | Bicep, `az deployment group create` |
+| Azure (App Insights, Log Analytics, Key Vault; optional Event Hub + data export) | `azure/infra` | `scripts/Deploy-Azure.ps1` | Bicep, `az deployment group create` |
 | Fabric (lakehouse, notebook, pipeline, model, ...) | `fabric/` | `scripts/Deploy-Fabric.ps1` | `fabric-cicd`, dev IDs rewritten per customer |
 | Power Platform (solution, Canvas app, flow) | `powerapps/` | `scripts/Deploy-PowerPlatform.ps1` | committed exported zip, App Insights key patched in, `pac solution import` |
 
@@ -166,6 +166,7 @@ See also [APP_INSIGHTS_FABRIC_SETUP.md](../azure/APP_INSIGHTS_FABRIC_SETUP.md).
 
 ## Known manual / unverified items
 
+- The optional real-time hot path (`azure.realtime.enabled`) deploys only the Event Hub and the Log Analytics data export. The Eventstream, the KQL setup script, the Activator alerts and the OneLake shortcut are manual; see [REALTIME_HOTPATH.md](./REALTIME_HOTPATH.md).
 - Not yet run end to end; the Power Platform solution import and `fabric-cicd` parameter behaviour need a first test run.
 - Dataflow connections and credentials must be bound in each target workspace after deployment.
 - Power Platform connection references (e.g. MSN Weather) and flow wiring need customer connection IDs.

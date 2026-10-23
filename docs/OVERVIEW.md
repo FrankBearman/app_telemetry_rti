@@ -36,7 +36,7 @@ flowchart LR
    (idempotent), and selected `customDimensions` are flattened into
    `RequestsCustomDimensions`. Logical retention is applied.
 5. A **semantic model** reads the Lakehouse through Direct Lake for reporting.
-   A separate KQL queryset/Eventhouse path supports live queries.
+   A separate KQL queryset/Eventhouse path supports live queries. An optional zero-ETL hot path (Log Analytics export → Event Hub → Eventstream → Eventhouse, mirrored to OneLake) is described in [REALTIME_HOTPATH.md](./REALTIME_HOTPATH.md).
 
 ## Components
 
@@ -69,4 +69,5 @@ end yet.
 ## Further reading
 
 - [DEPLOYMENT.md](./DEPLOYMENT.md): deployment tooling
+- [REALTIME_HOTPATH.md](./REALTIME_HOTPATH.md): real-time Eventhouse hot path
 - [APP_INSIGHTS_FABRIC_SETUP.md](../azure/APP_INSIGHTS_FABRIC_SETUP.md): Key Vault permissions, scheduling, load windows, query examples

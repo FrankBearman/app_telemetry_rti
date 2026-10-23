@@ -35,6 +35,11 @@ if ($OutputsOnly) {
         appInsightsConnectionString = $o.appInsightsConnectionString.value
         keyVaultName                = $o.keyVaultName.value
         keyVaultUrl                 = $o.keyVaultUrl.value
+        logAnalyticsWorkspaceId     = $o.logAnalyticsWorkspaceId.value
+        eventHubNamespaceName       = $o.eventHubNamespaceName.value
+        eventHubName                = $o.eventHubName.value
+        eventHubConsumerGroup       = $o.eventHubConsumerGroup.value
+        eventHubListenRuleName      = $o.eventHubListenRuleName.value
         resourceGroup               = $cfg.resourceGroup
         subscriptionId              = $cfg.subscriptionId
     } | ConvertTo-Json | Set-Content (Join-Path $outDir 'azure-outputs.json') -Encoding utf8
@@ -46,6 +51,17 @@ az group create --name $cfg.resourceGroup --location $cfg.location --tags soluti
 if ($LASTEXITCODE) { throw 'Resource group creation failed.' }
 
 $a = $cfg.azure
+$rt = $a.realtime
+$rtEnabled = [bool]($rt -and $rt.enabled)
+$rtSku = 'Standard'; $rtCapacity = 1; $rtTables = @('AppRequests', 'AppTraces', 'AppExceptions')
+$rtConsumerGroup = 'fabric-eventstream'; $rtLawId = ''
+if ($rt) {
+    if ($rt.eventHubSku) { $rtSku = [string]$rt.eventHubSku }
+    if ($rt.eventHubCapacity) { $rtCapacity = [int]$rt.eventHubCapacity }
+    if ($rt.exportTables) { $rtTables = @($rt.exportTables) }
+    if ($rt.consumerGroupName) { $rtConsumerGroup = [string]$rt.consumerGroupName }
+    if ($rt.existingLogAnalyticsWorkspaceId) { $rtLawId = [string]$rt.existingLogAnalyticsWorkspaceId }
+}
 $parameters = [ordered]@{
     '$schema'      = 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#'
     contentVersion = '1.0.0.0'
@@ -60,6 +76,12 @@ $parameters = [ordered]@{
         existingKeyVaultName      = @{ value = [string]$a.existingKeyVaultName }
         secretReaderPrincipalIds  = @{ value = @($a.secretReaderPrincipalIds) }
         secretOfficerPrincipalIds = @{ value = @($a.secretOfficerPrincipalIds) }
+        enableRealtime            = @{ value = $rtEnabled }
+        eventHubSku               = @{ value = $rtSku }
+        eventHubCapacity          = @{ value = $rtCapacity }
+        exportTables              = @{ value = @($rtTables) }
+        consumerGroupName         = @{ value = $rtConsumerGroup }
+        existingLogAnalyticsWorkspaceId = @{ value = $rtLawId }
     }
 }
 $paramFile = Join-Path $outDir 'azure.parameters.json'
@@ -85,8 +107,16 @@ $result = [ordered]@{
     appInsightsConnectionString = $o.appInsightsConnectionString.value
     keyVaultName                = $o.keyVaultName.value
     keyVaultUrl                 = $o.keyVaultUrl.value
+    logAnalyticsWorkspaceId     = $o.logAnalyticsWorkspaceId.value
+    eventHubNamespaceName       = $o.eventHubNamespaceName.value
+    eventHubName                = $o.eventHubName.value
+    eventHubConsumerGroup       = $o.eventHubConsumerGroup.value
+    eventHubListenRuleName      = $o.eventHubListenRuleName.value
     resourceGroup               = $cfg.resourceGroup
     subscriptionId              = $cfg.subscriptionId
 }
 $result | ConvertTo-Json | Set-Content (Join-Path $outDir 'azure-outputs.json') -Encoding utf8
 Write-Host "Azure deployment complete. Key Vault: $($result.keyVaultUrl)  App Insights: $($result.appInsightsName)"
+if ($rtEnabled) {
+    Write-Host "Real-time export enabled. Event Hub: $($result.eventHubNamespaceName)/$($result.eventHubName) (consumer group '$($result.eventHubConsumerGroup)', listen rule '$($result.eventHubListenRuleName)'). See docs/REALTIME_HOTPATH.md."
+}

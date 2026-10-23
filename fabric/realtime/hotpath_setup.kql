@@ -1,0 +1,138 @@
+// =====================================================================================
+// Real-time hot path setup for the app_telemetry Eventhouse KQL database.
+//
+// Flow: Log Analytics Data Export -> Event Hub -> Fabric Eventstream -> RawAppTelemetry
+//       -> update policies -> AppRequestsRT / AppTracesRT / AppExceptionsRT
+//       -> OneLake availability (mirroring policy) -> Delta Parquet -> Direct Lake.
+//
+// How to run: open a KQL queryset (or the database's "Explore your data") against the
+// app_telemetry_eventhouse KQL database, paste this whole file, place the cursor inside the
+// .execute block and Run. The script is idempotent (create-merge / create-or-alter / alter).
+// If your client rejects .execute database script, run each blank-line-separated command
+// inside the block on its own, in order.
+//
+// The Eventstream Eventhouse destination must use "Direct ingestion" into table
+// RawAppTelemetry with the existing JSON mapping RawAppTelemetryMapping. Each Event Hub
+// message from Log Analytics data export is an envelope {"records":[ {...}, {...} ]}; each
+// record has a "Type" column (AppRequests, AppTraces, AppExceptions) and the workspace-based
+// column names (TimeGenerated, Properties, OperationId, ...).
+//
+// Note: mirroring does not backfill data that existed before the policy was enabled, and
+// restricts some later schema changes. See docs/REALTIME_HOTPATH.md.
+// =====================================================================================
+.execute database script with (ContinueOnErrors = false) <|
+.create-merge table RawAppTelemetry (records: dynamic)
+
+.create-or-alter table RawAppTelemetry ingestion json mapping "RawAppTelemetryMapping" '[{"column":"records","Properties":{"Path":"$.records"}}]'
+
+.alter-merge table RawAppTelemetry policy retention softdelete = 1d recoverability = disabled
+
+.create-merge table AppRequestsRT (TimeGenerated: datetime, Id: string, Name: string, Url: string, Success: bool, ResultCode: string, DurationMs: real, OperationId: string, OperationName: string, AppRoleName: string, ClientCountryOrRegion: string, ItemCount: int, Properties: dynamic, _ResourceId: string)
+
+.create-merge table AppTracesRT (TimeGenerated: datetime, Message: string, SeverityLevel: int, OperationId: string, OperationName: string, AppRoleName: string, ItemCount: int, Properties: dynamic, _ResourceId: string)
+
+.create-merge table AppExceptionsRT (TimeGenerated: datetime, ProblemId: string, ExceptionType: string, OuterMessage: string, InnermostMessage: string, SeverityLevel: int, OperationId: string, OperationName: string, AppRoleName: string, Details: dynamic, Properties: dynamic, _ResourceId: string)
+
+.create-or-alter function with (folder = "HotPath", docstring = "Expands AppRequests records from the Log Analytics export envelope") ExpandAppRequests() {
+    RawAppTelemetry
+    | mv-expand r = records
+    | where tostring(r.Type) == "AppRequests"
+    | project
+        TimeGenerated = todatetime(r.TimeGenerated),
+        Id = tostring(r.Id),
+        Name = tostring(r.Name),
+        Url = tostring(r.Url),
+        Success = tobool(r.Success),
+        ResultCode = tostring(r.ResultCode),
+        DurationMs = toreal(r.DurationMs),
+        OperationId = tostring(r.OperationId),
+        OperationName = tostring(r.OperationName),
+        AppRoleName = tostring(r.AppRoleName),
+        ClientCountryOrRegion = tostring(r.ClientCountryOrRegion),
+        ItemCount = toint(r.ItemCount),
+        Properties = todynamic(tostring(r.Properties)),
+        _ResourceId = tostring(r._ResourceId)
+}
+
+.create-or-alter function with (folder = "HotPath", docstring = "Expands AppTraces records from the Log Analytics export envelope") ExpandAppTraces() {
+    RawAppTelemetry
+    | mv-expand r = records
+    | where tostring(r.Type) == "AppTraces"
+    | project
+        TimeGenerated = todatetime(r.TimeGenerated),
+        Message = tostring(r.Message),
+        SeverityLevel = toint(r.SeverityLevel),
+        OperationId = tostring(r.OperationId),
+        OperationName = tostring(r.OperationName),
+        AppRoleName = tostring(r.AppRoleName),
+        ItemCount = toint(r.ItemCount),
+        Properties = todynamic(tostring(r.Properties)),
+        _ResourceId = tostring(r._ResourceId)
+}
+
+.create-or-alter function with (folder = "HotPath", docstring = "Expands AppExceptions records from the Log Analytics export envelope") ExpandAppExceptions() {
+    RawAppTelemetry
+    | mv-expand r = records
+    | where tostring(r.Type) == "AppExceptions"
+    | project
+        TimeGenerated = todatetime(r.TimeGenerated),
+        ProblemId = tostring(r.ProblemId),
+        ExceptionType = tostring(r.ExceptionType),
+        OuterMessage = tostring(r.OuterMessage),
+        InnermostMessage = tostring(r.InnermostMessage),
+        SeverityLevel = toint(r.SeverityLevel),
+        OperationId = tostring(r.OperationId),
+        OperationName = tostring(r.OperationName),
+        AppRoleName = tostring(r.AppRoleName),
+        Details = todynamic(tostring(r.Details)),
+        Properties = todynamic(tostring(r.Properties)),
+        _ResourceId = tostring(r._ResourceId)
+}
+
+.alter table AppRequestsRT policy update @'[{"IsEnabled": true, "Source": "RawAppTelemetry", "Query": "ExpandAppRequests()", "IsTransactional": false, "PropagateIngestionProperties": false}]'
+
+.alter table AppTracesRT policy update @'[{"IsEnabled": true, "Source": "RawAppTelemetry", "Query": "ExpandAppTraces()", "IsTransactional": false, "PropagateIngestionProperties": false}]'
+
+.alter table AppExceptionsRT policy update @'[{"IsEnabled": true, "Source": "RawAppTelemetry", "Query": "ExpandAppExceptions()", "IsTransactional": false, "PropagateIngestionProperties": false}]'
+
+.alter table AppRequestsRT policy caching hot = 30d
+
+.alter table AppTracesRT policy caching hot = 30d
+
+.alter table AppExceptionsRT policy caching hot = 30d
+
+.create-or-alter function with (folder = "HotPath", docstring = "Weather-flow runs: started/ended traces joined on clientRunId") WeatherFlowRuns(lookback: timespan = 24h) {
+    let base = AppTracesRT
+        | where TimeGenerated > ago(lookback)
+        | where Message has "weather-flow"
+        | extend clientRunId = tostring(Properties["clientRunId"]), appName = tostring(Properties["ms-appName"]), appid = tostring(Properties["ms-appId"]);
+    let startedView = base
+        | where Message has "started"
+        | project clientRunId, severityLevel = SeverityLevel, startTime = TimeGenerated, appName, appid;
+    let endedView = base
+        | where Message has "ended"
+        | project clientRunId, endTime = TimeGenerated;
+    startedView
+    | join kind = leftouter endedView on clientRunId
+    | extend durationMs = datetime_diff("millisecond", endTime, startTime)
+    | project clientRunId, durationMs, severityLevel, startTime, endTime, appid, appName
+}
+
+.alter-merge table AppRequestsRT policy mirroring dataformat = parquet with (IsEnabled = true, TargetLatencyInMinutes = 5)
+
+.alter-merge table AppTracesRT policy mirroring dataformat = parquet with (IsEnabled = true, TargetLatencyInMinutes = 5)
+
+.alter-merge table AppExceptionsRT policy mirroring dataformat = parquet with (IsEnabled = true, TargetLatencyInMinutes = 5)
+
+// -------------------------------------------------------------------------------------
+// Verification (run individually after the script and after data starts flowing):
+//
+// .show table AppRequestsRT policy update
+// .show table AppRequestsRT policy mirroring
+// .show table AppRequestsRT operations mirroring-status
+// .show ingestion failures | where FailedOn > ago(1h)
+// RawAppTelemetry | take 5
+// AppRequestsRT | where TimeGenerated > ago(15m) | summarize count() by bin(TimeGenerated, 1m)
+// AppRequestsRT | where TimeGenerated > ago(15m) and Success == false | project TimeGenerated, Name, ResultCode, DurationMs
+// WeatherFlowRuns(1h)
+// -------------------------------------------------------------------------------------

@@ -14,7 +14,15 @@
     "useExistingKeyVault": false,
     "existingKeyVaultName": "",
     "secretReaderPrincipalIds": [],
-    "secretOfficerPrincipalIds": []
+    "secretOfficerPrincipalIds": [],
+    "realtime": {
+      "enabled": false,
+      "eventHubSku": "Standard",
+      "eventHubCapacity": 1,
+      "exportTables": ["AppRequests", "AppTraces", "AppExceptions"],
+      "consumerGroupName": "fabric-eventstream",
+      "existingLogAnalyticsWorkspaceId": ""
+    }
   },
 
   "fabric": {

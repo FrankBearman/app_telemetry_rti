@@ -41,3 +41,4 @@ output id string = create ? appInsightsNew!.id : appInsightsExisting!.id
 output name string = name
 output appId string = create ? appInsightsNew!.properties.AppId : appInsightsExisting!.properties.AppId
 output connectionString string = create ? appInsightsNew!.properties.ConnectionString : appInsightsExisting!.properties.ConnectionString
+output workspaceId string = create ? logAnalytics!.id : appInsightsExisting!.properties.WorkspaceResourceId

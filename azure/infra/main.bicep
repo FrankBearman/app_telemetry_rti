@@ -27,6 +27,32 @@ param secretReaderPrincipalIds array = []
 param secretOfficerPrincipalIds array = []
 param enablePurgeProtection bool = true
 
+@description('Real-time hot path: Log Analytics data export -> Event Hub -> Fabric Eventstream -> Eventhouse.')
+param enableRealtime bool = false
+
+@allowed([
+  'Standard'
+  'Premium'
+])
+param eventHubSku string = 'Standard'
+
+@minValue(1)
+@maxValue(20)
+param eventHubCapacity int = 1
+
+@description('Workspace tables to export (workspace schema names, Analytics plan only).')
+param exportTables array = [
+  'AppRequests'
+  'AppTraces'
+  'AppExceptions'
+  'AppDependencies'
+]
+
+param consumerGroupName string = 'fabric-eventstream'
+
+@description('Required with enableRealtime + useExistingAppInsights: resource ID of the Log Analytics workspace behind the existing Application Insights. It must be in the same region as "location".')
+param existingLogAnalyticsWorkspaceId string = ''
+
 var suffix = uniqueString(resourceGroup().id)
 var appInsightsName = useExistingAppInsights ? existingAppInsightsName : '${namePrefix}-appi'
 var keyVaultName = useExistingKeyVault ? existingKeyVaultName : take('${namePrefix}-kv-${suffix}', 24)
@@ -54,9 +80,45 @@ module keyVault 'modules/keyvault.bicep' = {
   }
 }
 
+// The export rule lives on the workspace, which for an existing App Insights may be in
+// another resource group/subscription, so the scope is derived from a deploy-time value.
+var newWorkspaceId = resourceId('Microsoft.OperationalInsights/workspaces', '${namePrefix}-law')
+var exportWorkspaceId = useExistingAppInsights && !empty(existingLogAnalyticsWorkspaceId) ? existingLogAnalyticsWorkspaceId : newWorkspaceId
+var exportWorkspaceParts = split(exportWorkspaceId, '/')
+
+module eventHub 'modules/eventhub.bicep' = if (enableRealtime) {
+  name: 'eventhub'
+  params: {
+    namespaceName: take('${namePrefix}-ehns-${suffix}', 50)
+    location: location
+    sku: eventHubSku
+    capacity: eventHubCapacity
+    consumerGroupName: consumerGroupName
+  }
+}
+
+module dataExport 'modules/dataexport.bicep' = if (enableRealtime) {
+  name: 'dataexport'
+  scope: resourceGroup(exportWorkspaceParts[2], exportWorkspaceParts[4])
+  params: {
+    workspaceName: exportWorkspaceParts[8]
+    eventHubNamespaceId: eventHub!.outputs.namespaceId
+    eventHubName: eventHub!.outputs.eventHubName
+    tableNames: exportTables
+  }
+  dependsOn: [
+    appInsights
+  ]
+}
+
 output appInsightsName string = appInsights.outputs.name
 output appInsightsId string = appInsights.outputs.id
 output appInsightsAppId string = appInsights.outputs.appId
 output appInsightsConnectionString string = appInsights.outputs.connectionString
 output keyVaultName string = keyVault.outputs.name
 output keyVaultUrl string = keyVault.outputs.uri
+output logAnalyticsWorkspaceId string = appInsights.outputs.workspaceId
+output eventHubNamespaceName string = enableRealtime ? eventHub!.outputs.namespaceName : ''
+output eventHubName string = enableRealtime ? eventHub!.outputs.eventHubName : ''
+output eventHubConsumerGroup string = enableRealtime ? eventHub!.outputs.consumerGroupName : ''
+output eventHubListenRuleName string = enableRealtime ? eventHub!.outputs.listenRuleName : ''

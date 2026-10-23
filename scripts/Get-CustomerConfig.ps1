@@ -31,5 +31,9 @@ if ($cfg.azure.useExistingAppInsights -and [string]::IsNullOrWhiteSpace($cfg.azu
 if ($cfg.azure.useExistingKeyVault -and [string]::IsNullOrWhiteSpace($cfg.azure.existingKeyVaultName)) {
     throw "$path : azure.existingKeyVaultName is required when useExistingKeyVault is true."
 }
+$rt = $cfg.azure.realtime
+if ($rt -and $rt.enabled -and $cfg.azure.useExistingAppInsights -and [string]::IsNullOrWhiteSpace($rt.existingLogAnalyticsWorkspaceId)) {
+    throw "$path : azure.realtime.existingLogAnalyticsWorkspaceId is required when realtime is enabled with useExistingAppInsights."
+}
 
 $cfg
