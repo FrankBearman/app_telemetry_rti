@@ -129,6 +129,13 @@ the gateway itself and the credential-bearing Fabric connection are created in F
    - Event Hub network rules with **default deny** and the **trusted Microsoft
      services exception enabled**. General public client traffic is denied, but
      Azure Monitor data export can still deliver events.
+     Azure requires at least one allowed IP or VNet rule in selected-networks mode.
+     The connector subnet has a `Microsoft.EventHub` service endpoint and is the
+     only allowed subnet; there are no allowed public IP rules. Its firewall rule
+     is applied after subnet creation, before deploying the data export rule.
+     Private DNS still routes the configured Fabric connection through Private
+     Link. The subnet allow rule additionally permits authenticated service-endpoint
+     access from that subnet; this is not a private-link-only namespace.
 
    **This is not an all-private producer path:** Log Analytics data export needs
    the trusted-service exception on the public endpoint. Do not set public network

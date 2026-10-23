@@ -131,6 +131,7 @@ module dataExport 'modules/dataexport.bicep' = if (enableRealtime) {
   }
   dependsOn: [
     appInsights
+    streamingNetwork
   ]
 }
 

@@ -52,13 +52,14 @@ resource namespace 'Microsoft.EventHub/namespaces@2024-01-01' = {
   }
 }
 
-resource networkRules 'Microsoft.EventHub/namespaces/networkRuleSets@2024-01-01' = {
+// Private-mode rules are applied by streamingnetwork after its allowed subnet exists.
+resource networkRules 'Microsoft.EventHub/namespaces/networkRuleSets@2024-01-01' = if (!enablePrivateNetworking) {
   parent: namespace
   name: 'default'
   properties: {
     publicNetworkAccess: 'Enabled'
-    defaultAction: enablePrivateNetworking ? 'Deny' : 'Allow'
-    trustedServiceAccessEnabled: enablePrivateNetworking
+    defaultAction: 'Allow'
+    trustedServiceAccessEnabled: false
     ipRules: []
     virtualNetworkRules: []
   }

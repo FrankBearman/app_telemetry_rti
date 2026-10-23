@@ -25,6 +25,11 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
         name: connectorSubnetName
         properties: {
           addressPrefix: connectorSubnetPrefix
+          serviceEndpoints: [
+            {
+              service: 'Microsoft.EventHub'
+            }
+          ]
           delegations: [
             {
               name: 'messaging-connectors'
@@ -53,6 +58,30 @@ resource networkContributor 'Microsoft.Authorization/roleAssignments@2022-04-01'
     principalId: workspaceIdentityPrincipalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: networkContributorRoleId
+  }
+}
+
+resource eventHubNamespace 'Microsoft.EventHub/namespaces@2024-01-01' existing = {
+  name: last(split(eventHubNamespaceId, '/'))
+}
+
+// Selected-networks mode requires a real allow rule even with trusted services enabled.
+resource networkRules 'Microsoft.EventHub/namespaces/networkRuleSets@2024-01-01' = {
+  parent: eventHubNamespace
+  name: 'default'
+  properties: {
+    publicNetworkAccess: 'Enabled'
+    defaultAction: 'Deny'
+    trustedServiceAccessEnabled: true
+    ipRules: []
+    virtualNetworkRules: [
+      {
+        subnet: {
+          id: resourceId('Microsoft.Network/virtualNetworks/subnets', vnet.name, connectorSubnetName)
+        }
+        ignoreMissingVnetServiceEndpoint: false
+      }
+    ]
   }
 }
 

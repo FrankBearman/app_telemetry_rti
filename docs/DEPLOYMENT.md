@@ -52,6 +52,10 @@ resource names and telemetry endpoints are retained. The deployment script reuse
 the existing resource group without changing its metadata location.
 The Event Hub retains a trusted Microsoft services
 exception for Log Analytics export while denying general public client traffic.
+Selected-networks mode also allows the dedicated connector subnet through a
+`Microsoft.EventHub` service endpoint; an empty default-deny ruleset is rejected
+by Azure. The private-network module applies the firewall after creating this
+subnet, and the data export deployment waits for that module.
 See [Step 1a](./REALTIME_HOTPATH.md#step-1a-private-event-hub-connectivity-and-streaming-vnet-gateway).
 
 ## Structure
