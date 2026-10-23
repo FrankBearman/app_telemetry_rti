@@ -19,9 +19,13 @@ flowchart LR
     subgraph Fabric
       PL[Data pipeline] --> NB[Ingest notebook]
       NB --> LH[(Lakehouse<br/>Requests, RequestsCustomDimensions)]
-      LH --> SM[Semantic model<br/>Direct Lake]
+      EH[Eventhouse<br/>AppRequestsRT] -->|OneLake availability| SC[Lakehouse OneLake shortcut<br/>dbo.AppRequestsRT]
+      SC --> SM[Semantic model<br/>Direct Lake]
       KQ[KQL queryset / Eventhouse<br/>live query path]
     end
+    AI -->|Log Analytics export| HUB[Event Hub]
+    HUB --> ES[Fabric Eventstream]
+    ES --> EH
     AI -.-> KQ
 ```
 
@@ -29,14 +33,18 @@ flowchart LR
    (Canvas `Trace()` events and a Power Automate flow) and the standalone .NET
    demo API.
 2. **Application Insights** stores it, backed by a Log Analytics workspace.
-3. A scheduled **Fabric pipeline** runs the **ingest notebook**. It queries the
+3. The alternate batch path uses a scheduled **Fabric pipeline** to run the **ingest notebook**. It queries the
    `requests` table in bounded UTC windows, using a watermark with an overlap
    for late arrivals. It reads the API key from Key Vault at runtime.
 4. Rows are merged by telemetry `id` into the Lakehouse `Requests` Delta table
    (idempotent), and selected `customDimensions` are flattened into
    `RequestsCustomDimensions`. Logical retention is applied.
-5. A **semantic model** reads the Lakehouse through Direct Lake for reporting.
-   A separate KQL queryset/Eventhouse path supports live queries. An optional zero-ETL hot path (Log Analytics export → Event Hub → Eventstream → Eventhouse, mirrored to OneLake) is described in [REALTIME_HOTPATH.md](./REALTIME_HOTPATH.md).
+5. The checked-in **semantic model** now reads the Eventhouse's `AppRequestsRT`
+   mirrored Delta table through the Lakehouse's `dbo.AppRequestsRT` OneLake shortcut.
+   This reporting path does not depend on the batch tables or execute notebooks/pipelines.
+   A KQL queryset/Eventhouse path supports live queries. Configure the zero-ETL
+   hot path (Log Analytics export -> Event Hub -> Eventstream -> Eventhouse, mirrored
+   to OneLake) as described in [REALTIME_HOTPATH.md](./REALTIME_HOTPATH.md).
 
 ## Components
 

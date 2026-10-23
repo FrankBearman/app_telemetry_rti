@@ -19,7 +19,9 @@ The Key Vault is created by the Azure stage, so the Power Platform secret can on
 3. Create the Azure DevOps service connection and a variable group containing `Service_Connection`.
 4. Run the Azure stage (creates App Insights, Log Analytics and the Key Vault).
 5. Store the PP client secret **Value** in the vault as `pp-client-secret`, and grant the service connection's enterprise-application object ID "Key Vault Secrets User" on the vault.
-6. Run the Fabric and Power Platform stages (or the whole pipeline again).
+6. Run the Fabric stage with **fabricBootstrap = true** for a new workspace. This publishes infrastructure without shortcuts, semantic models, or reports. Power Platform can deploy independently.
+7. Complete the [real-time hot-path setup](./REALTIME_HOTPATH.md): run the KQL setup, configure/publish the Eventstream, and wait for the first OneLake-mirrored Delta files.
+8. Enable `fabric.realtime.lakehouseShortcuts` with `AppRequestsRT` included, then run the Fabric stage with **fabricBootstrap = false**. Shortcuts must publish successfully before the semantic model is imported.
 
 See "Identities and secrets" below for what each identity needs.
 
@@ -91,6 +93,12 @@ Create a pipeline from `azure-pipelines.yml`, then per customer create:
 
 Run with the `customer` and `serviceConnection` parameters. Azure outputs are passed to later stages as the `azure-outputs` pipeline artifact.
 
+For a new Fabric workspace, select `fabricBootstrap = true` first, then `false` after
+the Eventhouse's mirrored tables are ready. Locally use
+`Deploy-Fabric.ps1 -Customer <code> -Bootstrap` or `Deploy-All.ps1 -Customer <code> -FabricBootstrap`.
+Bootstrap does not execute any notebook or pipeline. Normal deployment publishes
+infrastructure and shortcuts first, then semantic models and reports in a separate pass.
+
 ### Fabric access for the deploying service principal
 
 The Fabric stage runs as the identity behind the chosen service connection. It must be allowed into the customer's Fabric workspace, otherwise the stage fails with `The caller does not have sufficient permissions to access the requested resource` (a `GET` on `api.powerbi.com/v1/workspaces/<id>`).
@@ -139,9 +147,15 @@ The deployment creates the Key Vault but not the secret. The Fabric notebook rea
 
 **Fabric side**
 
-1. Open the new workspace and run `app_telemetry_ingest_pipeline` (or the notebook directly). Schedule it afterwards.
-2. Check that `Requests` and `RequestsCustomDimensions` in `app_telemtry_lh_bronze` contain rows. Failures are visible in the run output.
-3. Open the semantic model and refresh/check it against the Lakehouse.
+1. Follow [REALTIME_HOTPATH.md](./REALTIME_HOTPATH.md) to initialize the KQL tables and publish the Eventstream.
+2. Verify OneLake availability has written Delta files for `AppRequestsRT`, then complete the non-bootstrap deployment.
+3. In `app_telemtry_lh_bronze`, check the `dbo.AppRequestsRT` OneLake shortcut. Open `app_telemetry_model` and check its `Requests` table against that shortcut.
+
+The model no longer reads the notebook's `Requests` table. Legacy notebook/dataflow
+ingestion remains optional and is not a prerequisite for this zero-ETL reporting path.
+The hot-path model retains only the 14 columns available in `AppRequestsRT`; `success`
+is now boolean and `duration` is in milliseconds. Reports using removed legacy columns
+must be updated; see the mapping in [REALTIME_HOTPATH.md](./REALTIME_HOTPATH.md#step-6-direct-lake-reporting).
 
 The Fabric deployment also publishes the checked-in Dataflow Gen2 items, including
 `dataflow_weather_flow`, which writes the 24-hour weather-flow trace summary to the
@@ -152,8 +166,8 @@ the target workspace's connections and credentials, then open and save the dataf
 the changes before refreshing it. Fabric connection IDs and credentials are workspace-specific
 and are not copied from the development workspace. The target tenant is determined by the
 Fabric workspace and the identity used to deploy; it is not a value in the dataflow definition.
-These dataflows remain an alternate/sample path; the notebook pipeline is the production
-ingestion path.
+These dataflows and the notebook pipeline remain alternate batch paths; neither feeds
+the checked-in hot-path semantic model.
 
 **Troubleshooting**
 
@@ -161,12 +175,13 @@ ingestion path.
 - `401`/`403` from the App Insights API: wrong or non-"Read telemetry" key, or the key belongs to a different App Insights resource.
 - Empty tables with a green run: no telemetry in the load window; generate traffic (e.g. the demo API) and rerun.
 - Running one stage in isolation needs prior Azure outputs; the pipeline falls back to re-reading them with `Deploy-Azure.ps1 -OutputsOnly`.
+- `Dataset_Import_FailedToImportDataset` with a `null` message: the service did not supply a useful cause. For a new workspace, check that `dbo.AppRequestsRT` exists through the shortcut, its mirrored Delta schema is readable by the deploying identity, and the model's staged OneLake IDs point to the target. Use `fabricBootstrap = true` before initializing the hot path; a successful Lakehouse/SQL endpoint publish alone does not create the source table.
 
 See also [APP_INSIGHTS_FABRIC_SETUP.md](../azure/APP_INSIGHTS_FABRIC_SETUP.md).
 
 ## Known manual / unverified items
 
-- The optional real-time hot path (`azure.realtime.enabled`) deploys only the Event Hub and the Log Analytics data export. The Eventstream, the KQL setup script, the Activator alerts and the OneLake shortcut are manual; see [REALTIME_HOTPATH.md](./REALTIME_HOTPATH.md).
+- The optional real-time Azure resources (`azure.realtime.enabled`) are the Event Hub and Log Analytics data export. A Git-synced Eventstream and OneLake shortcuts can be promoted by the Fabric stage; the target connection, KQL setup script, and Activator rules still require setup. See [REALTIME_HOTPATH.md](./REALTIME_HOTPATH.md).
 - Not yet run end to end; the Power Platform solution import and `fabric-cicd` parameter behaviour need a first test run.
 - Dataflow connections and credentials must be bound in each target workspace after deployment.
 - Power Platform connection references (e.g. MSN Weather) and flow wiring need customer connection IDs.

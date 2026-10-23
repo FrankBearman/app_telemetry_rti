@@ -42,7 +42,7 @@
     "realtime": {
       "eventHubConnectionId": "",
       "lakehouseShortcuts": {
-        "enabled": false,
+        "enabled": true,
         "tables": ["AppRequestsRT", "AppTracesRT", "AppExceptionsRT"]
       }
     }

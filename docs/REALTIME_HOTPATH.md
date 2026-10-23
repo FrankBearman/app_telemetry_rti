@@ -171,16 +171,27 @@ Caveats:
 ## Step 6: Direct Lake reporting
 
 1. Create OneLake shortcuts in the Lakehouse `app_telemtry_lh_bronze` that point to the three `*RT` tables. These are internal OneLake shortcuts, **not** ADLS Gen2 shortcuts. They are zero-copy, and they read the mirrored Delta files, so OneLake availability (Step 5) is required. You can create them either way:
-   - **Automated (ADO)**: set `fabric.realtime.lakehouseShortcuts.enabled = true`, and optionally edit `tables`. `deploy_fabric.py` then writes `shortcuts.metadata.json` into the *staged* Lakehouse copy. The target KQL database is resolved through `$items.KQLDatabase.app_telemetry_eventhouse.$id`. The script also turns on fabric-cicd's `enable_shortcut_publish` and `continue_on_shortcut_failure` flags. The source `shortcuts.metadata.json` stays `[]`.
+   - **Automated (ADO)**: set `fabric.realtime.lakehouseShortcuts.enabled = true`, and include `AppRequestsRT` in `tables`. `deploy_fabric.py` writes `shortcuts.metadata.json` into the *staged* Lakehouse copy under `Tables/dbo`, matching the schema-enabled Lakehouse and model. The target KQL database is resolved through `$items.KQLDatabase.app_telemetry_eventhouse.$id`. Shortcut publication failures stop deployment; they are not ignored. The source `shortcuts.metadata.json` stays `[]`.
    - **Manual**: in the Lakehouse, select **Tables → New shortcut → Microsoft OneLake**, then pick the KQL database and the tables.
 
-   The target tables must already exist, so the first deployment takes two passes:
-   1. Deploy with shortcuts disabled.
-   2. Run `hotpath_setup.kql`.
-   3. Enable shortcuts and redeploy.
+   The target tables and their mirrored Delta files must already exist, so the first deployment takes two passes:
+   1. Run ADO with **fabricBootstrap = true**, or run `Deploy-Fabric.ps1 -Customer <name> -Bootstrap` (for `Deploy-All.ps1`, use `-FabricBootstrap`). This explicitly omits shortcuts, semantic models, and reports, regardless of the shortcut setting. It publishes infrastructure only; it does not run notebooks or pipelines.
+   2. Run `hotpath_setup.kql`, configure/publish the Eventstream, and generate telemetry. Wait for mirroring and verify that `AppRequestsRT` appears in the KQL database's OneLake view with Delta files. An empty Lakehouse or a provisioned SQL endpoint alone is not sufficient.
+   3. Set `fabric.realtime.lakehouseShortcuts.enabled = true` with `AppRequestsRT` in `tables`, then rerun ADO with **fabricBootstrap = false** (or omit `-Bootstrap`). The script finishes the infrastructure/shortcut pass before publishing semantic models and reports. The deploying identity needs access to the KQL database's OneLake data as well as the Lakehouse.
 
    Shortcuts show data only after the first mirrored files are written, which can take up to `TargetLatencyInMinutes`.
-2. Build a Direct Lake semantic model over those shortcut tables, or add them to `app_telemetry_model`. Then build Power BI reports on top.
+2. The checked-in `app_telemetry_model` now reads `dbo.AppRequestsRT` through the Lakehouse shortcut, **not** the notebook's `Requests` table. Its model table is still named `Requests`, and supported report-facing column names and lineage tags are retained:
+
+   | Model column | Hot-path source column |
+   |---|---|
+   | `timestamp`, `id`, `name`, `url` | `TimeGenerated`, `Id`, `Name`, `Url` |
+   | `success`, `resultCode`, `duration` | `Success` (boolean), `ResultCode`, `DurationMs` (milliseconds) |
+   | `customDimensions` | `Properties` (mirrored dynamic value as a string) |
+   | `operation_Name`, `operation_Id` | `OperationName`, `OperationId` |
+   | `cloud_RoleName`, `client_CountryOrRegion` | `AppRoleName`, `ClientCountryOrRegion` |
+   | `itemCount`, `_ResourceId` | `ItemCount`, `_ResourceId` |
+
+   Legacy-only columns such as `source`, `performanceBucket`, `customMeasurements`, session/user IDs, and other client fields are removed rather than fabricated. Existing reports using those columns, or expecting string-valued `success`, need updating. Add traces/exception model tables separately when required; the current model reports requests only.
 
 Direct Lake reads the mirrored Delta files directly, so no import refresh or ETL step is needed.
 
@@ -190,7 +201,7 @@ Direct Lake reads the mirrored Delta files directly, so no import refresh or ETL
 - **Log Analytics data export** is billed per GB exported.
 - **Eventhouse**: the capacity cost is driven by always-on compute. Keep the raw-table retention short, which is already set to 1 day.
 - To add more tables (for example `AppDependencies`), add them to `exportTables`. Then add a typed table, expand function, and update policy in `hotpath_setup.kql`, and enable mirroring on the new table.
-- The batch path (notebook + pipeline → Lakehouse `Requests`) is unchanged. You can run both paths, or retire the batch path once the hot path has been validated.
+- The batch ingestion artifacts (notebook + pipeline -> Lakehouse `Requests`) are unchanged and optional. The checked-in semantic model no longer depends on them; do not run them to bootstrap this hot path.
 
 ## Not yet verified
 
@@ -199,5 +210,5 @@ These configs have not been run end to end. In particular, check the following:
 - That the queryset accepts `.execute database script`.
 - That the export-record column names (for example `DurationMs`, `Success`, `Properties`) match your workspace. Inspect them with `RawAppTelemetry | take 1`.
 - That Eventstream's direct-ingestion mode accepts the existing mapping.
-- That the installed fabric-cicd version publishes `Eventstream` items, and that `$items.KQLDatabase...$id` resolves for items created in the same run. If it doesn't, rerun the deploy.
-- That the generated `shortcuts.metadata.json` shape (OneLake target `workspaceId`/`itemId`/`path`) matches what fabric-cicd and the Lakehouse expect. Compare it with a Git-synced Lakehouse that has a manually created shortcut.
+- The end-to-end Eventstream deployment, shortcut resolution and model import in the target tenant. Bootstrap creates the KQL database before the reporting deployment.
+- That `dbo.AppRequestsRT` resolves through the generated OneLake shortcut and exposes the mirrored Delta schema to Direct Lake. Inspect the Lakehouse shortcut and model after the first reporting deployment.

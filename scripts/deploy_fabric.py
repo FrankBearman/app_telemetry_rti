@@ -1,6 +1,8 @@
 """Deploy the fabric/ items to a customer's Fabric workspace using fabric-cicd.
 
 Usage: python scripts/deploy_fabric.py --customer contoso
+First deployment: add --bootstrap to omit shortcuts and reporting items until the
+Eventhouse tables have OneLake availability and their first mirrored Delta files.
 
 Authentication uses the Azure CLI login (AzureCliCredential): an `az login` session locally,
 or the service connection identity inside the ADO AzureCLI@2 task. That identity must be a
@@ -33,6 +35,7 @@ SOURCE_APP_INSIGHTS_CLUSTER_URI = (
 SOURCE_WORKSPACE_ID = "e40c817a-488d-4c50-b65e-4020fa697795"
 SOURCE_LAKEHOUSE_ID = "e8d8f813-dff6-4223-8857-e2ccdf0c2381"
 LAKEHOUSE_NAME = "app_telemtry_lh_bronze"
+REPORTING_ITEM_TYPES = {"SemanticModel", "Report"}
 
 # Real-time hot path. Fill these in from the Git-synced dev Eventstream definition
 # (fabric/<name>.Eventstream/eventstream.json) after it is created in the dev workspace.
@@ -73,7 +76,7 @@ def inject_shortcuts(stage: Path, tables: list[str]) -> None:
     shortcuts = [
         {
             "name": table,
-            "path": "/Tables",
+            "path": "Tables/dbo",
             "target": {
                 "type": "OneLake",
                 "oneLake": {
@@ -89,7 +92,9 @@ def inject_shortcuts(stage: Path, tables: list[str]) -> None:
     path.write_text(json.dumps(shortcuts, indent=2), encoding="utf-8")
 
 
-def write_parameter_file(stage: Path, environment: str, app_insights_app_id: str, realtime: dict) -> None:
+def write_parameter_file(
+    stage: Path, environment: str, app_insights_app_id: str, realtime: dict, *, publish_shortcuts: bool
+) -> None:
     # Workspace and Lakehouse IDs only exist after the items are created, so fabric-cicd resolves
     # them through its dynamic variables at publish time.
     parameters = {
@@ -116,7 +121,7 @@ def write_parameter_file(stage: Path, environment: str, app_insights_app_id: str
     for find_value, replace_value in optional.items():
         if find_value and replace_value:
             parameters["find_replace"].append({"find_value": find_value, "replace_value": {environment: replace_value}})
-    if realtime.get("lakehouseShortcuts", {}).get("enabled"):
+    if publish_shortcuts:
         parameters["find_replace"].append(
             {
                 "find_value": SHORTCUT_KQL_DATABASE_TOKEN,
@@ -126,10 +131,33 @@ def write_parameter_file(stage: Path, environment: str, app_insights_app_id: str
     (stage / "parameter.yml").write_text(yaml.safe_dump(parameters, sort_keys=False), encoding="utf-8")
 
 
+def publish_workspace(fabric: dict, environment: str, stage: Path, *, bootstrap: bool) -> None:
+    item_types = fabric["itemTypes"]
+    reporting = [item_type for item_type in item_types if item_type in REPORTING_ITEM_TYPES]
+    infrastructure = [item_type for item_type in item_types if item_type not in REPORTING_ITEM_TYPES]
+    credential = AzureCliCredential()
+    # Shortcut publication is a post-publish action. Finish that pass before importing models.
+    phases = [infrastructure] if bootstrap else [infrastructure, reporting]
+    for scope in phases:
+        if scope:
+            workspace = FabricWorkspace(
+                workspace_id=fabric["workspaceId"],
+                environment=environment,
+                repository_directory=str(stage),
+                item_type_in_scope=scope,
+                token_credential=credential,
+            )
+            publish_all_items(workspace)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--customer", required=True)
     parser.add_argument("--repo-root", default=str(Path(__file__).resolve().parent.parent))
+    parser.add_argument(
+        "--bootstrap", action="store_true",
+        help="Publish infrastructure without shortcuts, semantic models, or reports.",
+    )
     args = parser.parse_args()
 
     repo = Path(args.repo_root)
@@ -138,6 +166,18 @@ def main() -> None:
     azure = json.loads((out_dir / "azure-outputs.json").read_text(encoding="utf-8-sig"))
 
     fabric = config["fabric"]
+    realtime = fabric.get("realtime", {})
+    shortcuts = realtime.get("lakehouseShortcuts", {})
+    publish_shortcuts = bool(shortcuts.get("enabled")) and not args.bootstrap
+    if not args.bootstrap and "SemanticModel" in fabric["itemTypes"]:
+        if not publish_shortcuts or "AppRequestsRT" not in shortcuts.get("tables", []):
+            raise ValueError(
+                "app_telemetry_model requires the AppRequestsRT OneLake shortcut. Enable "
+                "fabric.realtime.lakehouseShortcuts and include AppRequestsRT in tables, "
+                "or use --bootstrap until hotpath_setup.kql has run and mirroring is ready."
+            )
+        if "Lakehouse" not in fabric["itemTypes"] or "KQLDatabase" not in fabric["itemTypes"]:
+            raise ValueError("Hot-path model deployment requires Lakehouse and KQLDatabase in fabric.itemTypes.")
     key_vault_url = azure["keyVaultUrl"] if azure["keyVaultUrl"].endswith("/") else azure["keyVaultUrl"] + "/"
     cluster_uri = (
         f"https://ade.applicationinsights.io/subscriptions/{azure['subscriptionId']}"
@@ -153,24 +193,15 @@ def main() -> None:
             SOURCE_APP_INSIGHTS_CLUSTER_URI: cluster_uri,
         },
     )
-    realtime = fabric.get("realtime", {})
-    shortcuts = realtime.get("lakehouseShortcuts", {})
-    if shortcuts.get("enabled"):
-        # The KQL tables must already exist with OneLake availability on (hotpath_setup.kql),
-        # so enable this on a second deployment after the KQL setup script has run.
+    if publish_shortcuts:
         inject_shortcuts(stage, shortcuts.get("tables", []))
         append_feature_flag("enable_shortcut_publish")
-        append_feature_flag("continue_on_shortcut_failure")
-    write_parameter_file(stage, args.customer, azure["appInsightsAppId"], realtime)
-
-    workspace = FabricWorkspace(
-        workspace_id=fabric["workspaceId"],
-        environment=args.customer,
-        repository_directory=str(stage),
-        item_type_in_scope=fabric["itemTypes"],
-        token_credential=AzureCliCredential(),
+    write_parameter_file(
+        stage, args.customer, azure["appInsightsAppId"], realtime, publish_shortcuts=publish_shortcuts
     )
-    publish_all_items(workspace)
+    if args.bootstrap:
+        print("Bootstrap: shortcuts, semantic models, and reports are explicitly excluded.")
+    publish_workspace(fabric, args.customer, stage, bootstrap=args.bootstrap)
     print(f"Fabric items published to workspace {fabric['workspaceId']}.")
 
 

@@ -24,6 +24,10 @@ parameters:
   - name: deployFabric
     type: boolean
     default: true
+  - name: fabricBootstrap
+    displayName: Bootstrap Fabric without shortcuts or reporting (first deployment)
+    type: boolean
+    default: false
   - name: deployPowerPlatform
     type: boolean
     default: true
@@ -98,7 +102,7 @@ stages:
                         azureSubscription: ${{ parameters.serviceConnection }}
                         scriptType: pscore
                         scriptLocation: inlineScript
-                        inlineScript: ./scripts/Deploy-Fabric.ps1 -Customer '${{ parameters.customer }}'
+                        inlineScript: ./scripts/Deploy-Fabric.ps1 -Customer '${{ parameters.customer }}' -Bootstrap:$${{ parameters.fabricBootstrap }}
                         workingDirectory: $(Build.SourcesDirectory)
 
   - ${{ if eq(parameters.deployPowerPlatform, true) }}:

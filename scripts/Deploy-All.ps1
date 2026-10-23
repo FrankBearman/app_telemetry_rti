@@ -10,12 +10,13 @@ param(
     [Parameter(Mandatory)][string]$Customer,
     [switch]$SkipAzure,
     [switch]$SkipFabric,
-    [switch]$SkipPowerPlatform
+    [switch]$SkipPowerPlatform,
+    [switch]$FabricBootstrap
 )
 
 $ErrorActionPreference = 'Stop'
 $cfg = & "$PSScriptRoot\Get-CustomerConfig.ps1" -Customer $Customer
 
 if (-not $SkipAzure) { & "$PSScriptRoot\Deploy-Azure.ps1" -Customer $Customer }
-if (-not $SkipFabric -and $cfg.fabric.deploy) { & "$PSScriptRoot\Deploy-Fabric.ps1" -Customer $Customer }
+if (-not $SkipFabric -and $cfg.fabric.deploy) { & "$PSScriptRoot\Deploy-Fabric.ps1" -Customer $Customer -Bootstrap:$FabricBootstrap }
 if (-not $SkipPowerPlatform -and $cfg.powerPlatform.deploy) { & "$PSScriptRoot\Deploy-PowerPlatform.ps1" -Customer $Customer }
