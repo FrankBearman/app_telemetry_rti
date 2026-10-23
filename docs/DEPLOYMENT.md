@@ -143,7 +143,9 @@ The deployment creates the Key Vault but not the secret. The Fabric notebook rea
 2. Check that `Requests` and `RequestsCustomDimensions` in `app_telemtry_lh_bronze` contain rows. Failures are visible in the run output.
 3. Open the semantic model and refresh/check it against the Lakehouse.
 
-The Fabric deployment also publishes both Dataflow Gen2 items. Their Application Insights
+The Fabric deployment also publishes the checked-in Dataflow Gen2 items, including
+`dataflow_weather_flow`, which writes the 24-hour weather-flow trace summary to the
+`weather_flow_runs` Lakehouse table. Their Application Insights
 App ID, Lakehouse ID, and workspace ID are parameterized for the target environment. After
 deployment, configure each dataflow's Web source connection and Lakehouse destination with
 the target workspace's connections and credentials, then open and save the dataflow to publish

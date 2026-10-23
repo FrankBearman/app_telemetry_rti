@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Dataflow",
+    "displayName": "dataflow_weather_flow"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "f11356af-99ff-45f3-bef7-fbd217f9e55e"
+  }
+}
