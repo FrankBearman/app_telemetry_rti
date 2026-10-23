@@ -67,12 +67,6 @@ $rt = $a.realtime
 $rtEnabled = [bool]($rt -and $rt.enabled)
 $network = $rt.privateNetworking
 $privateNetworkingEnabled = [bool]($rtEnabled -and $network -and $network.enabled)
-$workspaceIdentityPrincipalId = ''
-if ($privateNetworkingEnabled) {
-    # Azure runs before item publication, but VNet RBAC needs the Fabric identity first.
-    $identity = & "$PSScriptRoot\Ensure-FabricWorkspaceIdentity.ps1" -Customer $Customer -RepoRoot $RepoRoot -ReadOnly:$WhatIf
-    $workspaceIdentityPrincipalId = $identity.servicePrincipalId
-}
 $rtSku = 'Standard'; $rtCapacity = 1; $rtTables = @('AppRequests', 'AppTraces', 'AppExceptions')
 $rtConsumerGroup = 'fabric-eventstream'; $rtLawId = ''
 if ($rt) {
@@ -107,7 +101,6 @@ $parameters = [ordered]@{
         streamingNetworkAddressPrefix = @{ value = $(if ($privateNetworkingEnabled) { [string]$network.addressPrefix } else { '10.50.0.0/24' }) }
         streamingConnectorSubnetPrefix = @{ value = $(if ($privateNetworkingEnabled) { [string]$network.connectorSubnetPrefix } else { '10.50.0.0/27' }) }
         streamingPrivateEndpointSubnetPrefix = @{ value = $(if ($privateNetworkingEnabled) { [string]$network.privateEndpointSubnetPrefix } else { '10.50.0.32/27' }) }
-        fabricWorkspaceIdentityPrincipalId = @{ value = $workspaceIdentityPrincipalId }
     }
 }
 $paramFile = Join-Path $outDir 'azure.parameters.json'

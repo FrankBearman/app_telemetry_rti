@@ -84,8 +84,8 @@ the gateway itself and the credential-bearing Fabric connection are created in F
    `Ensure-FabricWorkspaceIdentity.ps1`. The deploying identity must be Workspace
    Admin to provision it. The helper waits for completion and records the
    application and service-principal IDs in `out/<customer>/fabric-identity.json`.
-   It does not create the workspace. Azure deployment also calls the helper
-   before assigning VNet permissions, so no manual principal-ID copying is needed.
+   It does not create the workspace. No manual principal-ID copying into
+   customer configuration is needed.
 2. Configure `azure.realtime.privateNetworking`:
 
    ```json
@@ -110,13 +110,12 @@ the gateway itself and the credential-bearing Fabric connection are created in F
    Choose nonoverlapping ranges for your organization's network. The config loader
    also checks subnet containment, disjointness, a /27-or-larger connector subnet,
    and avoidance of Fabric's reserved `10.240.0.0/16` and `10.224.0.0/12`.
-3. Run the Azure deployment again. The deploying identity needs resource creation,
-   role-assignment permission, and subscription provider-registration permission
+3. Run the Azure deployment again. The deploying identity needs resource creation
+   and subscription provider-registration permission
    if `Microsoft.MessagingConnectors` is not already registered. The script checks
    and registers that provider before deployment; `-WhatIf` and `-OutputsOnly`
-   do not register it. `-WhatIf` reads but does not provision the Fabric identity;
-   provision a missing identity with the helper first. `-OutputsOnly` skips
-   identity provisioning entirely.
+   do not register it. The Fabric deployment stage provisions the workspace
+   identity; Azure `-OutputsOnly` does not.
 
    This provisions:
    - A VNet with an otherwise empty `streaming-connectors` subnet delegated to
@@ -125,7 +124,10 @@ the gateway itself and the credential-bearing Fabric connection are created in F
    - The `privatelink.servicebus.windows.net` private DNS zone, VNet link and
      endpoint DNS zone group. Continue using the namespace's normal
      `<namespace>.servicebus.windows.net` hostname.
-   - **Network Contributor**, scoped to this VNet, for the Fabric workspace identity.
+   - An administrator must grant the Fabric workspace identity **Network Contributor**
+     on the VNet after the Fabric stage provisions the identity. The deployment
+     intentionally does not create Azure role assignments, so the ADO principal
+     does not need `roleAssignments/write`.
    - Event Hub network rules with **default deny** and the **trusted Microsoft
      services exception enabled**. General public client traffic is denied, but
      Azure Monitor data export can still deliver events.
@@ -143,15 +145,20 @@ the gateway itself and the credential-bearing Fabric connection are created in F
    If you later set `privateNetworking.enabled = false`, deployment restores the
    Event Hub's public allow rules; incremental deployment does not delete the
    previously created network resources or role assignment.
-4. In Fabric **Manage connections and gateways -> Streaming virtual network data
+4. Before creating the gateway, ensure the Fabric workspace identity has
+   **Network Contributor** on this VNet. For Contoso, its service-principal object
+   ID is `a493ff23-ef73-40a4-bbdf-7cf81df99cdb`. In Azure Portal, open the VNet's
+   **Access control (IAM)**, add a role assignment for **Network Contributor**, and
+   select that service principal. This is a one-time administrator action.
+5. In Fabric **Manage connections and gateways -> Streaming virtual network data
    gateways -> New**, choose the subscription, resource group, VNet and
    `streaming-connectors` subnet. Use the `streamingVirtualNetwork*` and
    `streamingConnectorSubnet*` values in `out/<customer>/azure-outputs.json`.
    Save the gateway, for example as `apptelem-contoso-streaming`.
-5. Grant the person creating the connection **Connection Creator** or **Admin**
+6. Grant the person creating the connection **Connection Creator** or **Admin**
    on the gateway. This Fabric permission is separate from the workspace
    identity's Azure Network Contributor role.
-6. In the Eventstream source wizard choose **Azure Event Hubs (Extended features
+7. In the Eventstream source wizard choose **Azure Event Hubs (Extended features
    mode)**. Create a connection with the gateway marked **[Streaming VNET]** and
    choose the resulting **[vNet]** connection. Use the Event Hub settings and
    Listen-only credentials from Step 3 below. Gateway connection testing is not

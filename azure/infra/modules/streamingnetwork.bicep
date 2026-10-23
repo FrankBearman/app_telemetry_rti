@@ -5,11 +5,9 @@ param addressPrefix string
 param connectorSubnetPrefix string
 param privateEndpointSubnetPrefix string
 param eventHubNamespaceId string
-param workspaceIdentityPrincipalId string
 
 var connectorSubnetName = 'streaming-connectors'
 var privateEndpointSubnetName = 'private-endpoints'
-var networkContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4d97b98b-1d4f-4787-a291-c67834d212e7')
 
 resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
   name: '${namePrefix}-streaming-vnet'
@@ -51,16 +49,6 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
   }
 }
 
-resource networkContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(vnet.id, workspaceIdentityPrincipalId, networkContributorRoleId)
-  scope: vnet
-  properties: {
-    principalId: workspaceIdentityPrincipalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: networkContributorRoleId
-  }
-}
-
 resource eventHubNamespace 'Microsoft.EventHub/namespaces@2024-01-01' existing = {
   name: last(split(eventHubNamespaceId, '/'))
 }
@@ -69,6 +57,9 @@ resource eventHubNamespace 'Microsoft.EventHub/namespaces@2024-01-01' existing =
 resource networkRules 'Microsoft.EventHub/namespaces/networkRuleSets@2024-01-01' = {
   parent: eventHubNamespace
   name: 'default'
+  dependsOn: [
+    vnet
+  ]
   properties: {
     publicNetworkAccess: 'Enabled'
     defaultAction: 'Deny'

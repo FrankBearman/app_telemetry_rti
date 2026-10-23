@@ -28,10 +28,8 @@ See "Identities and secrets" below for what each identity needs.
 For private Event Hub connectivity, set `azure.realtime.privateNetworking` with
 the Fabric region. `Ensure-FabricWorkspaceIdentity.ps1` reads the existing workspace's
 identity or provisions it if missing, waits for completion, and records its IDs in
-`out/<customer>/fabric-identity.json`. Both Fabric deployment and the Azure private
-network deployment invoke this helper. Azure must resolve the identity before item
-publication because its VNet role assignment needs the service-principal object ID.
-No manually copied principal ID is needed in customer configuration. The deployment
+`out/<customer>/fabric-identity.json`. Fabric deployment invokes this helper. No
+manually copied principal ID is needed in customer configuration. The deployment
 identity must be Workspace Admin to provision a missing identity, and the tenant
 must permit its use of Fabric APIs. The workspace itself must already exist and
 be capacity-assigned; this helper does not create a workspace.
@@ -41,8 +39,10 @@ be capacity-assigned; this helper does not create a workspace.
 `./scripts/Ensure-FabricWorkspaceIdentity.ps1 -Customer contoso`.
 
 The Azure stage provisions the delegated gateway subnet, separate
-private endpoint subnet, DNS, and VNet-scoped Network Contributor assignment. It
-registers `Microsoft.MessagingConnectors` if needed. Create the streaming VNet
+private endpoint subnet and DNS. It registers `Microsoft.MessagingConnectors` if
+needed. The Azure deployment identity does not need `roleAssignments/write`.
+After the Fabric stage provisions the workspace identity, an Azure administrator
+must grant that identity **Network Contributor** on the deployed VNet. Create the streaming VNet
 gateway and its Event Hubs **Extended features** connection in Fabric afterwards;
 these are not created by Bicep. Contoso's next deployment targets
 the existing `rg-apptelem-contoso`, retaining its Azure telemetry resources in UK South

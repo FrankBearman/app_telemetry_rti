@@ -59,8 +59,6 @@ param streamingNetworkLocation string = ''
 param streamingNetworkAddressPrefix string = '10.50.0.0/24'
 param streamingConnectorSubnetPrefix string = '10.50.0.0/27'
 param streamingPrivateEndpointSubnetPrefix string = '10.50.0.32/27'
-@description('Service-principal object ID of the Fabric workspace identity, not its client/application ID.')
-param fabricWorkspaceIdentityPrincipalId string = ''
 
 var suffix = uniqueString(resourceGroup().id)
 var appInsightsName = useExistingAppInsights ? existingAppInsightsName : '${namePrefix}-appi'
@@ -116,7 +114,6 @@ module streamingNetwork 'modules/streamingnetwork.bicep' = if (enableRealtime &&
     connectorSubnetPrefix: streamingConnectorSubnetPrefix
     privateEndpointSubnetPrefix: streamingPrivateEndpointSubnetPrefix
     eventHubNamespaceId: eventHub!.outputs.namespaceId
-    workspaceIdentityPrincipalId: fabricWorkspaceIdentityPrincipalId
   }
 }
 
