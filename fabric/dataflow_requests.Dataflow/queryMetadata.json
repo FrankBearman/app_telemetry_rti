@@ -34,11 +34,6 @@
       "path": "https://api.applicationinsights.io/v1/apps/00a8e086-bbec-4f92-a08f-14a05eb151f2/query",
       "kind": "Web",
       "connectionId": "{\"ClusterId\":\"a9510c79-ba46-4e45-8b6d-059813983db4\",\"DatasourceId\":\"815f63ba-18cc-41df-80d3-eabdb1f8e6f6\"}"
-    },
-    {
-      "path": "https://api.applicationinsights.io/v1/apps/cf6c9bff-c723-4116-900a-947ddf8d9dca/query",
-      "kind": "Web",
-      "connectionId": "{\"ClusterId\":\"a9510c79-ba46-4e45-8b6d-059813983db4\",\"DatasourceId\":\"5057d888-710a-439c-bfb6-b1db3dd5288e\"}"
     }
   ]
 }

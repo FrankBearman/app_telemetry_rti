@@ -30,7 +30,7 @@ in
 Table,
   #"Changed column type" = Table.TransformColumnTypes(AnalyticsQuery, {{"timestamp", type datetime}})
 in #"Changed column type";
-shared application_id = "cf6c9bff-c723-4116-900a-947ddf8d9dca" meta [IsParameterQuery = true, IsParameterQueryRequired = false, Type = type text] //cf6c9bff-c723-4116-900a-947ddf8d9dca//"00a8e086-bbec-4f92-a08f-14a05eb151f2"
+shared application_id = "00a8e086-bbec-4f92-a08f-14a05eb151f2" meta [IsParameterQuery = true, IsParameterQueryRequired = false, Type = type text]
 ;
 shared Requests_DataDestination = let
   Pattern = Lakehouse.Contents([CreateNavigationProperties = false, EnableFolding = false, HierarchicalNavigation = true, EnableVorder = true, OutputMetadataRefresh = true]),

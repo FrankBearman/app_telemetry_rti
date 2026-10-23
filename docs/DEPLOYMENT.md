@@ -143,6 +143,16 @@ The deployment creates the Key Vault but not the secret. The Fabric notebook rea
 2. Check that `Requests` and `RequestsCustomDimensions` in `app_telemtry_lh_bronze` contain rows. Failures are visible in the run output.
 3. Open the semantic model and refresh/check it against the Lakehouse.
 
+The Fabric deployment also publishes both Dataflow Gen2 items. Their Application Insights
+App ID, Lakehouse ID, and workspace ID are parameterized for the target environment. After
+deployment, configure each dataflow's Web source connection and Lakehouse destination with
+the target workspace's connections and credentials, then open and save the dataflow to publish
+the changes before refreshing it. Fabric connection IDs and credentials are workspace-specific
+and are not copied from the development workspace. The target tenant is determined by the
+Fabric workspace and the identity used to deploy; it is not a value in the dataflow definition.
+These dataflows remain an alternate/sample path; the notebook pipeline is the production
+ingestion path.
+
 **Troubleshooting**
 
 - `403` from Key Vault: the run-as identity lacks Secrets User, or role assignment hasn't propagated (wait a few minutes).
@@ -155,7 +165,7 @@ See also [APP_INSIGHTS_FABRIC_SETUP.md](../azure/APP_INSIGHTS_FABRIC_SETUP.md).
 ## Known manual / unverified items
 
 - Not yet run end to end; the Power Platform solution import and `fabric-cicd` parameter behaviour need a first test run.
-- Dataflows are excluded from the default Fabric item types (per-tenant connection bindings); set up manually.
+- Dataflow connections and credentials must be bound in each target workspace after deployment.
 - Power Platform connection references (e.g. MSN Weather) and flow wiring need customer connection IDs.
 - Dataverse telemetry export to Application Insights is configured manually in the Power Platform admin center.
 - Application Insights API keys were announced as retired (31 Mar 2026). The ingest notebook uses an API key; plan a move to Entra auth (service principal with Monitoring Reader).

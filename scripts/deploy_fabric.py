@@ -55,11 +55,15 @@ def stage_sources(repo: Path, out_dir: Path, replacements: dict[str, str]) -> Pa
     return stage
 
 
-def write_parameter_file(stage: Path, environment: str) -> None:
+def write_parameter_file(stage: Path, environment: str, app_insights_app_id: str) -> None:
     # Workspace and Lakehouse IDs only exist after the items are created, so fabric-cicd resolves
     # them through its dynamic variables at publish time.
     parameters = {
         "find_replace": [
+            {
+                "find_value": SOURCE_APP_INSIGHTS_APP_ID,
+                "replace_value": {environment: app_insights_app_id},
+            },
             {
                 "find_value": SOURCE_WORKSPACE_ID,
                 "replace_value": {environment: "$workspace.$id"},
@@ -96,12 +100,11 @@ def main() -> None:
         repo,
         out_dir,
         {
-            SOURCE_APP_INSIGHTS_APP_ID: azure["appInsightsAppId"],
             SOURCE_KEY_VAULT_URL: key_vault_url,
             SOURCE_APP_INSIGHTS_CLUSTER_URI: cluster_uri,
         },
     )
-    write_parameter_file(stage, args.customer)
+    write_parameter_file(stage, args.customer, azure["appInsightsAppId"])
 
     workspace = FabricWorkspace(
         workspace_id=fabric["workspaceId"],
