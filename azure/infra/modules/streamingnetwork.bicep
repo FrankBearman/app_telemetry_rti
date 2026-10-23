@@ -32,7 +32,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
             {
               name: 'messaging-connectors'
               properties: {
-                serviceName: 'Microsoft.MessagingConnectors'
+                serviceName: 'Microsoft.MessagingConnectors/connectors'
               }
             }
           ]
@@ -57,9 +57,6 @@ resource eventHubNamespace 'Microsoft.EventHub/namespaces@2024-01-01' existing =
 resource networkRules 'Microsoft.EventHub/namespaces/networkRuleSets@2024-01-01' = {
   parent: eventHubNamespace
   name: 'default'
-  dependsOn: [
-    vnet
-  ]
   properties: {
     publicNetworkAccess: 'Enabled'
     defaultAction: 'Deny'
