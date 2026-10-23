@@ -53,6 +53,15 @@ param consumerGroupName string = 'fabric-eventstream'
 @description('Required with enableRealtime + useExistingAppInsights: resource ID of the Log Analytics workspace behind the existing Application Insights. It must be in the same region as "location".')
 param existingLogAnalyticsWorkspaceId string = ''
 
+param enableStreamingPrivateNetworking bool = false
+@description('Region of the Fabric Eventstream/capacity, which can differ from the Event Hub/Log Analytics region.')
+param streamingNetworkLocation string = ''
+param streamingNetworkAddressPrefix string = '10.50.0.0/24'
+param streamingConnectorSubnetPrefix string = '10.50.0.0/27'
+param streamingPrivateEndpointSubnetPrefix string = '10.50.0.32/27'
+@description('Service-principal object ID of the Fabric workspace identity, not its client/application ID.')
+param fabricWorkspaceIdentityPrincipalId string = ''
+
 var suffix = uniqueString(resourceGroup().id)
 var appInsightsName = useExistingAppInsights ? existingAppInsightsName : '${namePrefix}-appi'
 var keyVaultName = useExistingKeyVault ? existingKeyVaultName : take('${namePrefix}-kv-${suffix}', 24)
@@ -94,6 +103,20 @@ module eventHub 'modules/eventhub.bicep' = if (enableRealtime) {
     sku: eventHubSku
     capacity: eventHubCapacity
     consumerGroupName: consumerGroupName
+    enablePrivateNetworking: enableStreamingPrivateNetworking
+  }
+}
+
+module streamingNetwork 'modules/streamingnetwork.bicep' = if (enableRealtime && enableStreamingPrivateNetworking) {
+  name: 'streamingnetwork'
+  params: {
+    namePrefix: namePrefix
+    location: streamingNetworkLocation
+    addressPrefix: streamingNetworkAddressPrefix
+    connectorSubnetPrefix: streamingConnectorSubnetPrefix
+    privateEndpointSubnetPrefix: streamingPrivateEndpointSubnetPrefix
+    eventHubNamespaceId: eventHub!.outputs.namespaceId
+    workspaceIdentityPrincipalId: fabricWorkspaceIdentityPrincipalId
   }
 }
 
@@ -122,3 +145,9 @@ output eventHubNamespaceName string = enableRealtime ? eventHub!.outputs.namespa
 output eventHubName string = enableRealtime ? eventHub!.outputs.eventHubName : ''
 output eventHubConsumerGroup string = enableRealtime ? eventHub!.outputs.consumerGroupName : ''
 output eventHubListenRuleName string = enableRealtime ? eventHub!.outputs.listenRuleName : ''
+output streamingVirtualNetworkLocation string = enableRealtime && enableStreamingPrivateNetworking ? streamingNetworkLocation : ''
+output streamingVirtualNetworkId string = enableRealtime && enableStreamingPrivateNetworking ? streamingNetwork!.outputs.virtualNetworkId : ''
+output streamingVirtualNetworkName string = enableRealtime && enableStreamingPrivateNetworking ? streamingNetwork!.outputs.virtualNetworkName : ''
+output streamingConnectorSubnetId string = enableRealtime && enableStreamingPrivateNetworking ? streamingNetwork!.outputs.connectorSubnetId : ''
+output streamingConnectorSubnetName string = enableRealtime && enableStreamingPrivateNetworking ? streamingNetwork!.outputs.connectorSubnetName : ''
+output eventHubPrivateEndpointId string = enableRealtime && enableStreamingPrivateNetworking ? streamingNetwork!.outputs.privateEndpointId : ''

@@ -33,6 +33,9 @@ param consumerGroupName string = 'fabric-eventstream'
 
 param listenRuleName string = 'fabric-listen'
 
+@description('Deny general public traffic while allowing Azure Monitor data export through the trusted-service exception.')
+param enablePrivateNetworking bool = false
+
 resource namespace 'Microsoft.EventHub/namespaces@2024-01-01' = {
   name: namespaceName
   location: location
@@ -43,8 +46,21 @@ resource namespace 'Microsoft.EventHub/namespaces@2024-01-01' = {
   }
   properties: {
     minimumTlsVersion: '1.2'
-    // Log Analytics data export authenticates with the trusted-service identity, not SAS.
+    // Keep the public endpoint for trusted Azure Monitor export; consumers use Private Link.
+    publicNetworkAccess: 'Enabled'
     disableLocalAuth: false
+  }
+}
+
+resource networkRules 'Microsoft.EventHub/namespaces/networkRuleSets@2024-01-01' = {
+  parent: namespace
+  name: 'default'
+  properties: {
+    publicNetworkAccess: 'Enabled'
+    defaultAction: enablePrivateNetworking ? 'Deny' : 'Allow'
+    trustedServiceAccessEnabled: enablePrivateNetworking
+    ipRules: []
+    virtualNetworkRules: []
   }
 }
 

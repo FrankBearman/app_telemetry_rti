@@ -3,7 +3,7 @@
   "tenantId": "05816dde-d611-4de7-a8b0-5c35bdca4180",
   "subscriptionId": "835c0954-8dd3-4099-8644-daff1323d1ec",
   "resourceGroup": "rg-apptelem-contoso",
-  "location": "uksouth",
+  "location": "centralus",
 
   "azure": {
     "namePrefix": "apptelcon",
@@ -21,7 +21,15 @@
       "eventHubCapacity": 1,
       "exportTables": ["AppRequests", "AppTraces", "AppExceptions"],
       "consumerGroupName": "fabric-eventstream",
-      "existingLogAnalyticsWorkspaceId": ""
+      "existingLogAnalyticsWorkspaceId": "",
+      "privateNetworking": {
+        "enabled": true,
+        "location": "centralus",
+        "addressPrefix": "10.50.0.0/24",
+        "connectorSubnetPrefix": "10.50.0.0/27",
+        "privateEndpointSubnetPrefix": "10.50.0.32/27",
+        "workspaceIdentityPrincipalId": "a493ff23-ef73-40a4-bbdf-7cf81df99cdb"
+      }
     }
   },
 

@@ -35,6 +35,7 @@ flowchart LR
 - At most 10 export rules per workspace. Basic and Auxiliary log tables cannot be exported.
 - A Fabric capacity with the Eventhouse `app_telemetry_eventhouse` deployed (it is part of the normal Fabric deploy).
 - Rights to create Eventstream and Activator items in the Fabric workspace.
+- For private Event Hub consumption, complete Step 1a before creating the Eventstream connection. The supported source is **Azure Event Hubs (Extended features mode)**; do not use the basic connector for the streaming VNet gateway.
 
 ## Step 1: Deploy the Azure resources
 
@@ -72,6 +73,89 @@ Generate some traffic, for example with the demo API or a Power App run. Then co
 > Log Analytics schema (`TimeGenerated`, `Type`, `Properties`, `OperationId`, ...),
 > not the classic App Insights API schema (`timestamp`, `customDimensions`).
 
+## Step 1a: Private Event Hub connectivity and streaming VNet gateway
+
+The gateway is required for the private-network consumer path, not for the original
+public-endpoint connector. The Azure deployment provisions its network prerequisites;
+the gateway itself and the credential-bearing Fabric connection are created in Fabric.
+
+1. In Fabric **Workspace settings -> Workspace identity**, enable the workspace
+   identity. Copy its **service-principal object ID**, not its application/client ID
+   or the workspace ID.
+2. Configure `azure.realtime.privateNetworking`:
+
+   ```json
+   "privateNetworking": {
+     "enabled": true,
+     "location": "centralus",
+     "addressPrefix": "10.50.0.0/24",
+     "connectorSubnetPrefix": "10.50.0.0/27",
+     "privateEndpointSubnetPrefix": "10.50.0.32/27",
+     "workspaceIdentityPrincipalId": "<workspace-identity-service-principal-object-id>"
+   }
+   ```
+
+   `location` must match the Fabric Eventstream/capacity region. Contoso's next
+   deployment uses **Central US** for both the Azure resources and this VNet,
+   matching its Fabric capacity, within the existing resource group
+   `rg-apptelem-contoso`. Existing UK South resources are not moved by changing
+   this configuration. Before redeploying, resolve existing same-name resources
+   that cannot change region. The deployment script reuses the existing group
+   without changing its metadata location. After deployment, update telemetry producers to use the new Application
+   Insights connection string and recreate the Fabric Event Hub connection for the
+   new namespace. Other configurations can use a cross-region private endpoint,
+   but must account for cross-region latency and transfer charges.
+   Choose nonoverlapping ranges for your organization's network. The config loader
+   also checks subnet containment, disjointness, a /27-or-larger connector subnet,
+   and avoidance of Fabric's reserved `10.240.0.0/16` and `10.224.0.0/12`.
+3. Run the Azure deployment again. The deploying identity needs resource creation,
+   role-assignment permission, and subscription provider-registration permission
+   if `Microsoft.MessagingConnectors` is not already registered. The script checks
+   and registers that provider before deployment; `-WhatIf` and `-OutputsOnly`
+   do not register it.
+
+   This provisions:
+   - A VNet with an otherwise empty `streaming-connectors` subnet delegated to
+     `Microsoft.MessagingConnectors`.
+   - A separate `private-endpoints` subnet and Event Hub namespace private endpoint.
+   - The `privatelink.servicebus.windows.net` private DNS zone, VNet link and
+     endpoint DNS zone group. Continue using the namespace's normal
+     `<namespace>.servicebus.windows.net` hostname.
+   - **Network Contributor**, scoped to this VNet, for the Fabric workspace identity.
+   - Event Hub network rules with **default deny** and the **trusted Microsoft
+     services exception enabled**. General public client traffic is denied, but
+     Azure Monitor data export can still deliver events.
+
+   **This is not an all-private producer path:** Log Analytics data export needs
+   the trusted-service exception on the public endpoint. Do not set public network
+   access to `Disabled` for this design. The Fabric consumer uses Private Link.
+   If you later set `privateNetworking.enabled = false`, deployment restores the
+   Event Hub's public allow rules; incremental deployment does not delete the
+   previously created network resources or role assignment.
+4. In Fabric **Manage connections and gateways -> Streaming virtual network data
+   gateways -> New**, choose the subscription, resource group, VNet and
+   `streaming-connectors` subnet. Use the `streamingVirtualNetwork*` and
+   `streamingConnectorSubnet*` values in `out/<customer>/azure-outputs.json`.
+   Save the gateway, for example as `apptelem-contoso-streaming`.
+5. Grant the person creating the connection **Connection Creator** or **Admin**
+   on the gateway. This Fabric permission is separate from the workspace
+   identity's Azure Network Contributor role.
+6. In the Eventstream source wizard choose **Azure Event Hubs (Extended features
+   mode)**. Create a connection with the gateway marked **[Streaming VNET]** and
+   choose the resulting **[vNet]** connection. Use the Event Hub settings and
+   Listen-only credentials from Step 3 below. Gateway connection testing is not
+   supported by this flow; **Skip test connection** is expected. Publish the
+   Eventstream and verify actual ingestion, rather than treating a saved
+   connection as proof that it works.
+
+Deployment does **not** create a Fabric gateway, a Fabric connection, or an
+Eventstream definition that is absent from Git. After creating and publishing
+the Eventstream, sync it to Git and configure its promotion as described below.
+
+References: [Streaming VNet gateway creation](https://learn.microsoft.com/fabric/real-time-intelligence/event-streams/create-manage-streaming-virtual-network-data-gateways),
+[streaming connector private networking prerequisites](https://learn.microsoft.com/fabric/real-time-intelligence/event-streams/streaming-connector-private-network-support-guide),
+and [Log Analytics export destination networking](https://learn.microsoft.com/azure/azure-monitor/logs/logs-data-export#event-hubs).
+
 ## Step 2: Create the KQL objects
 
 Open a KQL queryset on the Eventhouse database. Paste [`hotpath_setup.kql`](../fabric/realtime/hotpath_setup.kql) and run it. It is idempotent and creates the following objects:
@@ -87,7 +171,7 @@ If the queryset rejects `.execute database script`, run the commands inside the 
 
 In the Fabric workspace, select **New item → Eventstream**, for example `app_telemetry_es`.
 
-1. **Source → Azure Event Hubs**. Create a new connection with these settings:
+1. **Source → Azure Event Hubs** (use **Extended features mode** and the streaming VNet gateway from Step 1a for private connectivity). Create a new connection with these settings:
    - Namespace: `eventHubNamespaceName` from Step 1. Event Hub: `appinsights-export`.
    - Authentication: Shared Access Key, using the rule `fabric-listen`. Copy the key from **Azure portal → Event Hub → Shared access policies**.
    - Consumer group: `fabric-eventstream`. Data format: **JSON**.

@@ -40,6 +40,12 @@ if ($OutputsOnly) {
         eventHubName                = $o.eventHubName.value
         eventHubConsumerGroup       = $o.eventHubConsumerGroup.value
         eventHubListenRuleName      = $o.eventHubListenRuleName.value
+        streamingVirtualNetworkLocation = $o.streamingVirtualNetworkLocation.value
+        streamingVirtualNetworkId   = $o.streamingVirtualNetworkId.value
+        streamingVirtualNetworkName = $o.streamingVirtualNetworkName.value
+        streamingConnectorSubnetId  = $o.streamingConnectorSubnetId.value
+        streamingConnectorSubnetName = $o.streamingConnectorSubnetName.value
+        eventHubPrivateEndpointId   = $o.eventHubPrivateEndpointId.value
         resourceGroup               = $cfg.resourceGroup
         subscriptionId              = $cfg.subscriptionId
     } | ConvertTo-Json | Set-Content (Join-Path $outDir 'azure-outputs.json') -Encoding utf8
@@ -47,12 +53,20 @@ if ($OutputsOnly) {
     return
 }
 
-az group create --name $cfg.resourceGroup --location $cfg.location --tags solution=app-telemetry customer=$($cfg.customerCode) --output none
-if ($LASTEXITCODE) { throw 'Resource group creation failed.' }
+$groupExists = az group exists --name $cfg.resourceGroup --output tsv
+if ($LASTEXITCODE) { throw 'Could not check whether the resource group exists.' }
+if ($groupExists -eq 'false') {
+    az group create --name $cfg.resourceGroup --location $cfg.location --tags solution=app-telemetry customer=$($cfg.customerCode) --output none
+    if ($LASTEXITCODE) { throw 'Resource group creation failed.' }
+} elseif ($groupExists -ne 'true') {
+    throw "Unexpected resource group existence response: '$groupExists'."
+}
 
 $a = $cfg.azure
 $rt = $a.realtime
 $rtEnabled = [bool]($rt -and $rt.enabled)
+$network = $rt.privateNetworking
+$privateNetworkingEnabled = [bool]($rtEnabled -and $network -and $network.enabled)
 $rtSku = 'Standard'; $rtCapacity = 1; $rtTables = @('AppRequests', 'AppTraces', 'AppExceptions')
 $rtConsumerGroup = 'fabric-eventstream'; $rtLawId = ''
 if ($rt) {
@@ -82,6 +96,12 @@ $parameters = [ordered]@{
         exportTables              = @{ value = @($rtTables) }
         consumerGroupName         = @{ value = $rtConsumerGroup }
         existingLogAnalyticsWorkspaceId = @{ value = $rtLawId }
+        enableStreamingPrivateNetworking = @{ value = $privateNetworkingEnabled }
+        streamingNetworkLocation = @{ value = [string]$network.location }
+        streamingNetworkAddressPrefix = @{ value = $(if ($privateNetworkingEnabled) { [string]$network.addressPrefix } else { '10.50.0.0/24' }) }
+        streamingConnectorSubnetPrefix = @{ value = $(if ($privateNetworkingEnabled) { [string]$network.connectorSubnetPrefix } else { '10.50.0.0/27' }) }
+        streamingPrivateEndpointSubnetPrefix = @{ value = $(if ($privateNetworkingEnabled) { [string]$network.privateEndpointSubnetPrefix } else { '10.50.0.32/27' }) }
+        fabricWorkspaceIdentityPrincipalId = @{ value = [string]$network.workspaceIdentityPrincipalId }
     }
 }
 $paramFile = Join-Path $outDir 'azure.parameters.json'
@@ -92,7 +112,17 @@ $deployment = "apptelem-$($cfg.customerCode)"
 
 if ($WhatIf) {
     az deployment group what-if --resource-group $cfg.resourceGroup --name $deployment --template-file $template --parameters "@$paramFile"
+    if ($LASTEXITCODE) { throw 'Azure deployment what-if failed.' }
     return
+}
+
+if ($privateNetworkingEnabled) {
+    $registrationState = az provider show --namespace Microsoft.MessagingConnectors --query registrationState --output tsv
+    if ($LASTEXITCODE) { throw 'Could not read Microsoft.MessagingConnectors registration state.' }
+    if ($registrationState -ne 'Registered') {
+        az provider register --namespace Microsoft.MessagingConnectors --wait --output none
+        if ($LASTEXITCODE) { throw 'Microsoft.MessagingConnectors registration failed. Subscription-level registration permission is required.' }
+    }
 }
 
 $raw = az deployment group create --resource-group $cfg.resourceGroup --name $deployment `
@@ -112,6 +142,12 @@ $result = [ordered]@{
     eventHubName                = $o.eventHubName.value
     eventHubConsumerGroup       = $o.eventHubConsumerGroup.value
     eventHubListenRuleName      = $o.eventHubListenRuleName.value
+    streamingVirtualNetworkLocation = $o.streamingVirtualNetworkLocation.value
+    streamingVirtualNetworkId   = $o.streamingVirtualNetworkId.value
+    streamingVirtualNetworkName = $o.streamingVirtualNetworkName.value
+    streamingConnectorSubnetId  = $o.streamingConnectorSubnetId.value
+    streamingConnectorSubnetName = $o.streamingConnectorSubnetName.value
+    eventHubPrivateEndpointId   = $o.eventHubPrivateEndpointId.value
     resourceGroup               = $cfg.resourceGroup
     subscriptionId              = $cfg.subscriptionId
 }
@@ -119,4 +155,7 @@ $result | ConvertTo-Json | Set-Content (Join-Path $outDir 'azure-outputs.json') 
 Write-Host "Azure deployment complete. Key Vault: $($result.keyVaultUrl)  App Insights: $($result.appInsightsName)"
 if ($rtEnabled) {
     Write-Host "Real-time export enabled. Event Hub: $($result.eventHubNamespaceName)/$($result.eventHubName) (consumer group '$($result.eventHubConsumerGroup)', listen rule '$($result.eventHubListenRuleName)'). See docs/REALTIME_HOTPATH.md."
+}
+if ($privateNetworkingEnabled) {
+    Write-Host "Private consumer networking: $($result.streamingVirtualNetworkName) in $($result.streamingVirtualNetworkLocation), subnet '$($result.streamingConnectorSubnetName)'. Create the Fabric streaming VNet gateway and bind the Event Hubs (Extended features) connection. See docs/REALTIME_HOTPATH.md."
 }

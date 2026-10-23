@@ -25,6 +25,23 @@ The Key Vault is created by the Azure stage, so the Power Platform secret can on
 
 See "Identities and secrets" below for what each identity needs.
 
+For private Event Hub connectivity, first enable the Fabric workspace identity and
+set `azure.realtime.privateNetworking` with its service-principal object ID and
+the Fabric region. The Azure stage provisions the delegated gateway subnet, separate
+private endpoint subnet, DNS, and VNet-scoped Network Contributor assignment. It
+registers `Microsoft.MessagingConnectors` if needed. Create the streaming VNet
+gateway and its Event Hubs **Extended features** connection in Fabric afterwards;
+these are not created by Bicep. Contoso's next deployment targets
+the existing `rg-apptelem-contoso`, with the configured Azure resource and networking
+region set to Central US to match its Fabric capacity. This does not relocate
+existing UK South resources. Redeployment requires resolving same-name resource
+region conflicts. The deployment script reuses the existing resource group without
+changing its metadata location.
+Update telemetry producers and the Fabric Event Hub connection to the new
+deployment's endpoints before switching ingestion. The Event Hub retains a trusted Microsoft services
+exception for Log Analytics export while denying general public client traffic.
+See [Step 1a](./REALTIME_HOTPATH.md#step-1a-private-event-hub-connectivity-and-streaming-vnet-gateway).
+
 ## Structure
 
 ```mermaid
