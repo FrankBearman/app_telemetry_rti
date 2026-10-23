@@ -119,7 +119,7 @@ the gateway itself and the credential-bearing Fabric connection are created in F
 
    This provisions:
    - A VNet with an otherwise empty `streaming-connectors` subnet delegated to
-     `Microsoft.MessagingConnectors`.
+     `Microsoft.MessagingConnectors/connectors`.
    - A separate `private-endpoints` subnet and Event Hub namespace private endpoint.
    - The `privatelink.servicebus.windows.net` private DNS zone, VNet link and
      endpoint DNS zone group. Continue using the namespace's normal
@@ -197,6 +197,16 @@ In the Fabric workspace, select **New item → Eventstream**, for example `app_t
    - Ingestion mode: **Direct ingestion**. Workspace and database: `app_telemetry_eventhouse`.
    - Table: existing `RawAppTelemetry`. Data format: JSON. Mapping: existing `RawAppTelemetryMapping`.
 3. **Publish**.
+4. In **Live** mode, select the Eventhouse destination and choose **Configure**.
+   Select existing table `RawAppTelemetry`, a unique data connection name, JSON
+   format, and **Use existing mapping → RawAppTelemetryMapping**. Choose
+   **Finish**, verify that data connection creation succeeds, and close the wizard.
+   Publishing the topology alone does not complete the Direct ingestion destination.
+5. Confirm that both source and destination are **Active**, then generate fresh
+   telemetry. If the source starts at **Latest**, events sent before activation
+   are not a reliable end-to-end test. If the inspection step has no sample data,
+   generate telemetry while the source is active, refresh inspection, and select
+   the existing mapping rather than creating a replacement.
 
 ### Deploying the Eventstream from ADO
 
