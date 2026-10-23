@@ -27,8 +27,7 @@
         "location": "",
         "addressPrefix": "10.50.0.0/24",
         "connectorSubnetPrefix": "10.50.0.0/27",
-        "privateEndpointSubnetPrefix": "10.50.0.32/27",
-        "workspaceIdentityPrincipalId": ""
+        "privateEndpointSubnetPrefix": "10.50.0.32/27"
       }
     }
   },

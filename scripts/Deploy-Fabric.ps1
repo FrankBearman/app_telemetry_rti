@@ -14,6 +14,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 & "$PSScriptRoot\Get-CustomerConfig.ps1" -Customer $Customer -RepoRoot $RepoRoot | Out-Null
+& "$PSScriptRoot\Ensure-FabricWorkspaceIdentity.ps1" -Customer $Customer -RepoRoot $RepoRoot | Out-Null
 
 python -m pip install --quiet -r "$PSScriptRoot\requirements.txt"
 if ($LASTEXITCODE) { throw 'pip install failed.' }

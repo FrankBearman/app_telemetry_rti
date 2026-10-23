@@ -79,9 +79,13 @@ The gateway is required for the private-network consumer path, not for the origi
 public-endpoint connector. The Azure deployment provisions its network prerequisites;
 the gateway itself and the credential-bearing Fabric connection are created in Fabric.
 
-1. In Fabric **Workspace settings -> Workspace identity**, enable the workspace
-   identity. Copy its **service-principal object ID**, not its application/client ID
-   or the workspace ID.
+1. Ensure `fabric.workspaceId` identifies an existing, capacity-assigned workspace.
+   Deployment reads its workspace identity or provisions one if missing, using
+   `Ensure-FabricWorkspaceIdentity.ps1`. The deploying identity must be Workspace
+   Admin to provision it. The helper waits for completion and records the
+   application and service-principal IDs in `out/<customer>/fabric-identity.json`.
+   It does not create the workspace. Azure deployment also calls the helper
+   before assigning VNet permissions, so no manual principal-ID copying is needed.
 2. Configure `azure.realtime.privateNetworking`:
 
    ```json
@@ -90,21 +94,19 @@ the gateway itself and the credential-bearing Fabric connection are created in F
      "location": "centralus",
      "addressPrefix": "10.50.0.0/24",
      "connectorSubnetPrefix": "10.50.0.0/27",
-     "privateEndpointSubnetPrefix": "10.50.0.32/27",
-     "workspaceIdentityPrincipalId": "<workspace-identity-service-principal-object-id>"
+     "privateEndpointSubnetPrefix": "10.50.0.32/27"
    }
    ```
 
-   `location` must match the Fabric Eventstream/capacity region. Contoso's next
-   deployment uses **Central US** for both the Azure resources and this VNet,
-   matching its Fabric capacity, within the existing resource group
-   `rg-apptelem-contoso`. Existing UK South resources are not moved by changing
-   this configuration. Before redeploying, resolve existing same-name resources
-   that cannot change region. The deployment script reuses the existing group
-   without changing its metadata location. After deployment, update telemetry producers to use the new Application
-   Insights connection string and recreate the Fabric Event Hub connection for the
-   new namespace. Other configurations can use a cross-region private endpoint,
-   but must account for cross-region latency and transfer charges.
+   `privateNetworking.location` must match the Fabric Eventstream/capacity region.
+   Contoso keeps its existing Azure telemetry resources in **UK South**
+   (`location: uksouth`) within `rg-apptelem-contoso`. Only the gateway VNet and
+   private endpoint use **Central US**, matching the Fabric capacity. The private
+   endpoint targets the existing UK South Event Hub across regions; account for
+   cross-region latency and transfer charges. Existing resource names and telemetry
+   endpoints are retained. The deployment script reuses the existing group without
+   changing its metadata location. Do not change the top-level region to move
+   existing resources: same-name resources cannot be recreated in another region.
    Choose nonoverlapping ranges for your organization's network. The config loader
    also checks subnet containment, disjointness, a /27-or-larger connector subnet,
    and avoidance of Fabric's reserved `10.240.0.0/16` and `10.224.0.0/12`.
@@ -112,7 +114,9 @@ the gateway itself and the credential-bearing Fabric connection are created in F
    role-assignment permission, and subscription provider-registration permission
    if `Microsoft.MessagingConnectors` is not already registered. The script checks
    and registers that provider before deployment; `-WhatIf` and `-OutputsOnly`
-   do not register it.
+   do not register it. `-WhatIf` reads but does not provision the Fabric identity;
+   provision a missing identity with the helper first. `-OutputsOnly` skips
+   identity provisioning entirely.
 
    This provisions:
    - A VNet with an otherwise empty `streaming-connectors` subnet delegated to

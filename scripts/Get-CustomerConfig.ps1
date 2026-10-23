@@ -41,9 +41,9 @@ if ($network -and $network.enabled) {
     if ([string]::IsNullOrWhiteSpace($network.location)) {
         throw "$path : azure.realtime.privateNetworking.location must match the Fabric Eventstream region."
     }
-    $principalId = [guid]::Empty
-    if (-not [guid]::TryParse([string]$network.workspaceIdentityPrincipalId, [ref]$principalId) -or $principalId -eq [guid]::Empty) {
-        throw "$path : privateNetworking.workspaceIdentityPrincipalId must be the workspace identity's service-principal object ID."
+    $workspaceId = [guid]::Empty
+    if (-not [guid]::TryParse([string]$cfg.fabric.workspaceId, [ref]$workspaceId) -or $workspaceId -eq [guid]::Empty) {
+        throw "$path : fabric.workspaceId must identify an existing workspace for privateNetworking identity provisioning."
     }
 
     function Get-Ipv4Range([string]$Cidr) {

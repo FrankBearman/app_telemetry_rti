@@ -25,20 +25,32 @@ The Key Vault is created by the Azure stage, so the Power Platform secret can on
 
 See "Identities and secrets" below for what each identity needs.
 
-For private Event Hub connectivity, first enable the Fabric workspace identity and
-set `azure.realtime.privateNetworking` with its service-principal object ID and
-the Fabric region. The Azure stage provisions the delegated gateway subnet, separate
+For private Event Hub connectivity, set `azure.realtime.privateNetworking` with
+the Fabric region. `Ensure-FabricWorkspaceIdentity.ps1` reads the existing workspace's
+identity or provisions it if missing, waits for completion, and records its IDs in
+`out/<customer>/fabric-identity.json`. Both Fabric deployment and the Azure private
+network deployment invoke this helper. Azure must resolve the identity before item
+publication because its VNet role assignment needs the service-principal object ID.
+No manually copied principal ID is needed in customer configuration. The deployment
+identity must be Workspace Admin to provision a missing identity, and the tenant
+must permit its use of Fabric APIs. The workspace itself must already exist and
+be capacity-assigned; this helper does not create a workspace.
+
+`-WhatIf` only reads the identity and fails with setup instructions if it is absent;
+`-OutputsOnly` does not provision an identity. To provision it independently, run
+`./scripts/Ensure-FabricWorkspaceIdentity.ps1 -Customer contoso`.
+
+The Azure stage provisions the delegated gateway subnet, separate
 private endpoint subnet, DNS, and VNet-scoped Network Contributor assignment. It
 registers `Microsoft.MessagingConnectors` if needed. Create the streaming VNet
 gateway and its Event Hubs **Extended features** connection in Fabric afterwards;
 these are not created by Bicep. Contoso's next deployment targets
-the existing `rg-apptelem-contoso`, with the configured Azure resource and networking
-region set to Central US to match its Fabric capacity. This does not relocate
-existing UK South resources. Redeployment requires resolving same-name resource
-region conflicts. The deployment script reuses the existing resource group without
-changing its metadata location.
-Update telemetry producers and the Fabric Event Hub connection to the new
-deployment's endpoints before switching ingestion. The Event Hub retains a trusted Microsoft services
+the existing `rg-apptelem-contoso`, retaining its Azure telemetry resources in UK South
+(`location: uksouth`). Only the streaming network and private endpoint use Central US
+to match the Fabric capacity (`privateNetworking.location: centralus`). Existing
+resource names and telemetry endpoints are retained. The deployment script reuses
+the existing resource group without changing its metadata location.
+The Event Hub retains a trusted Microsoft services
 exception for Log Analytics export while denying general public client traffic.
 See [Step 1a](./REALTIME_HOTPATH.md#step-1a-private-event-hub-connectivity-and-streaming-vnet-gateway).
 
@@ -68,7 +80,7 @@ flowchart LR
 1. Copy `customers/_template.json` to `customers/<code>.json` and fill it in. Customer files are committed to the repo (IDs only, no secrets); the pipeline fails with "Customer config not found" if `customers/<code>.json` is not pushed.
 2. Prerequisites in the customer tenant:
    - Azure: subscription, and rights to create the resource group and role assignments.
-   - Fabric: workspace created and capacity-assigned; deploying identity is a workspace member; the tenant setting allowing service principals to use Fabric APIs is enabled.
+   - Fabric: workspace created and capacity-assigned; deploying identity is a workspace member (Admin to provision a missing workspace identity); the tenant setting allowing service principals to use Fabric APIs is enabled.
    - Power Platform: target environment; an app registration added as an application user with System Administrator.
 3. Secrets are never stored in the repo. The PP client secret is read at run time from the customer Key Vault (secret `pp-client-secret`).
 
