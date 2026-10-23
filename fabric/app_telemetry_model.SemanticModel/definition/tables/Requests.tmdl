@@ -57,9 +57,9 @@ table Requests
 
 		annotation SummarizationSetBy = Automatic
 
+	/// Request duration in milliseconds.
 	column duration
 		dataType: double
-		description: Request duration in milliseconds.
 		lineageTag: 0548162b-f8a5-44ea-987b-c5460f3007cc
 		sourceLineageTag: DurationMs
 		summarizeBy: sum
