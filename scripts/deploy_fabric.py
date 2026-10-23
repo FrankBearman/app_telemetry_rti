@@ -21,7 +21,7 @@ from pathlib import Path
 
 import yaml
 from azure.identity import AzureCliCredential
-from fabric_cicd import FabricWorkspace, publish_all_items
+from fabric_cicd import FabricWorkspace, append_feature_flag, publish_all_items
 
 # Identifiers baked into the exported development items. Update these if the source items change.
 SOURCE_APP_INSIGHTS_APP_ID = "00a8e086-bbec-4f92-a08f-14a05eb151f2"
@@ -33,6 +33,16 @@ SOURCE_APP_INSIGHTS_CLUSTER_URI = (
 SOURCE_WORKSPACE_ID = "e40c817a-488d-4c50-b65e-4020fa697795"
 SOURCE_LAKEHOUSE_ID = "e8d8f813-dff6-4223-8857-e2ccdf0c2381"
 LAKEHOUSE_NAME = "app_telemtry_lh_bronze"
+
+# Real-time hot path. Fill these in from the Git-synced dev Eventstream definition
+# (fabric/<name>.Eventstream/eventstream.json) after it is created in the dev workspace.
+# Empty values are skipped, so deployments work before the Eventstream exists.
+SOURCE_EVENTHUB_CONNECTION_ID = ""
+SOURCE_EVENTHOUSE_ID = ""
+SOURCE_KQL_DATABASE_ID = ""
+EVENTHOUSE_NAME = "app_telemetry_eventhouse"
+KQL_DATABASE_NAME = "app_telemetry_eventhouse"
+SHORTCUT_KQL_DATABASE_TOKEN = "__KQL_DATABASE_ID__"
 
 TEXT_SUFFIXES = {".py", ".json", ".pq", ".tmdl", ".kql", ".platform", ".yml", ".yaml", ".txt", ".md"}
 
@@ -55,7 +65,31 @@ def stage_sources(repo: Path, out_dir: Path, replacements: dict[str, str]) -> Pa
     return stage
 
 
-def write_parameter_file(stage: Path, environment: str, app_insights_app_id: str) -> None:
+def inject_shortcuts(stage: Path, tables: list[str]) -> None:
+    """Add OneLake shortcuts from the Lakehouse to the KQL database's OneLake-mirrored tables.
+
+    Written into the staged copy only; the IDs are resolved by parameter.yml at publish time.
+    """
+    shortcuts = [
+        {
+            "name": table,
+            "path": "/Tables",
+            "target": {
+                "type": "OneLake",
+                "oneLake": {
+                    "workspaceId": SOURCE_WORKSPACE_ID,
+                    "itemId": SHORTCUT_KQL_DATABASE_TOKEN,
+                    "path": f"Tables/{table}",
+                },
+            },
+        }
+        for table in tables
+    ]
+    path = stage / f"{LAKEHOUSE_NAME}.Lakehouse" / "shortcuts.metadata.json"
+    path.write_text(json.dumps(shortcuts, indent=2), encoding="utf-8")
+
+
+def write_parameter_file(stage: Path, environment: str, app_insights_app_id: str, realtime: dict) -> None:
     # Workspace and Lakehouse IDs only exist after the items are created, so fabric-cicd resolves
     # them through its dynamic variables at publish time.
     parameters = {
@@ -74,6 +108,21 @@ def write_parameter_file(stage: Path, environment: str, app_insights_app_id: str
             },
         ]
     }
+    optional = {
+        SOURCE_EVENTHUB_CONNECTION_ID: realtime.get("eventHubConnectionId", ""),
+        SOURCE_EVENTHOUSE_ID: f"$items.Eventhouse.{EVENTHOUSE_NAME}.$id",
+        SOURCE_KQL_DATABASE_ID: f"$items.KQLDatabase.{KQL_DATABASE_NAME}.$id",
+    }
+    for find_value, replace_value in optional.items():
+        if find_value and replace_value:
+            parameters["find_replace"].append({"find_value": find_value, "replace_value": {environment: replace_value}})
+    if realtime.get("lakehouseShortcuts", {}).get("enabled"):
+        parameters["find_replace"].append(
+            {
+                "find_value": SHORTCUT_KQL_DATABASE_TOKEN,
+                "replace_value": {environment: f"$items.KQLDatabase.{KQL_DATABASE_NAME}.$id"},
+            }
+        )
     (stage / "parameter.yml").write_text(yaml.safe_dump(parameters, sort_keys=False), encoding="utf-8")
 
 
@@ -104,7 +153,15 @@ def main() -> None:
             SOURCE_APP_INSIGHTS_CLUSTER_URI: cluster_uri,
         },
     )
-    write_parameter_file(stage, args.customer, azure["appInsightsAppId"])
+    realtime = fabric.get("realtime", {})
+    shortcuts = realtime.get("lakehouseShortcuts", {})
+    if shortcuts.get("enabled"):
+        # The KQL tables must already exist with OneLake availability on (hotpath_setup.kql),
+        # so enable this on a second deployment after the KQL setup script has run.
+        inject_shortcuts(stage, shortcuts.get("tables", []))
+        append_feature_flag("enable_shortcut_publish")
+        append_feature_flag("continue_on_shortcut_failure")
+    write_parameter_file(stage, args.customer, azure["appInsightsAppId"], realtime)
 
     workspace = FabricWorkspace(
         workspace_id=fabric["workspaceId"],

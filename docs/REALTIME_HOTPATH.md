@@ -96,6 +96,22 @@ In the Fabric workspace, select **New item → Eventstream**, for example `app_t
    - Table: existing `RawAppTelemetry`. Data format: JSON. Mapping: existing `RawAppTelemetryMapping`.
 3. **Publish**.
 
+### Deploying the Eventstream from ADO
+
+Build the Eventstream once in the **dev** workspace, then let `Deploy-Fabric.ps1` promote it:
+
+1. Create the Eventstream in dev as described above, then commit it to Git through Fabric Git integration. This produces `fabric/<name>.Eventstream/` with `eventstream.json`.
+2. In `scripts/deploy_fabric.py`, set these constants from that `eventstream.json`:
+   - `SOURCE_EVENTHUB_CONNECTION_ID`
+   - `SOURCE_EVENTHOUSE_ID`
+   - `SOURCE_KQL_DATABASE_ID`
+   
+   At deploy time these values are replaced: the connection ID with the customer value, and the Eventhouse and KQL database IDs with `$items.Eventhouse/KQLDatabase.<name>.$id`.
+3. In the **target** tenant, create a Fabric cloud connection of type Azure Event Hubs (Shared Access Key, rule `fabric-listen`). Put its ID in `fabric.realtime.eventHubConnectionId` in the customer JSON. Connections hold credentials, so they cannot be created from Git.
+4. Keep `"Eventstream"` in `fabric.itemTypes`. `Get-CustomerConfig.ps1` refuses to deploy an Eventstream without a valid connection ID.
+
+Activator rules are still created manually (Step 4).
+
 Use direct ingestion with the KQL mapping, not Eventstream's "event processing before ingestion". This keeps all the nested-JSON shaping in update policies inside the database, so there is one source of truth and nothing to re-map in the UI.
 
 Verify:
@@ -154,7 +170,16 @@ Caveats:
 
 ## Step 6: Direct Lake reporting
 
-1. In the Lakehouse `app_telemtry_lh_bronze` (or a new one), select **Tables → New shortcut → Microsoft OneLake**. Pick the KQL database and the three `*RT` tables. This is an internal OneLake shortcut, **not** an ADLS Gen2 shortcut.
+1. Create OneLake shortcuts in the Lakehouse `app_telemtry_lh_bronze` that point to the three `*RT` tables. These are internal OneLake shortcuts, **not** ADLS Gen2 shortcuts. They are zero-copy, and they read the mirrored Delta files, so OneLake availability (Step 5) is required. You can create them either way:
+   - **Automated (ADO)**: set `fabric.realtime.lakehouseShortcuts.enabled = true`, and optionally edit `tables`. `deploy_fabric.py` then writes `shortcuts.metadata.json` into the *staged* Lakehouse copy. The target KQL database is resolved through `$items.KQLDatabase.app_telemetry_eventhouse.$id`. The script also turns on fabric-cicd's `enable_shortcut_publish` and `continue_on_shortcut_failure` flags. The source `shortcuts.metadata.json` stays `[]`.
+   - **Manual**: in the Lakehouse, select **Tables → New shortcut → Microsoft OneLake**, then pick the KQL database and the tables.
+
+   The target tables must already exist, so the first deployment takes two passes:
+   1. Deploy with shortcuts disabled.
+   2. Run `hotpath_setup.kql`.
+   3. Enable shortcuts and redeploy.
+
+   Shortcuts show data only after the first mirrored files are written, which can take up to `TargetLatencyInMinutes`.
 2. Build a Direct Lake semantic model over those shortcut tables, or add them to `app_telemetry_model`. Then build Power BI reports on top.
 
 Direct Lake reads the mirrored Delta files directly, so no import refresh or ETL step is needed.
@@ -174,3 +199,5 @@ These configs have not been run end to end. In particular, check the following:
 - That the queryset accepts `.execute database script`.
 - That the export-record column names (for example `DurationMs`, `Success`, `Properties`) match your workspace. Inspect them with `RawAppTelemetry | take 1`.
 - That Eventstream's direct-ingestion mode accepts the existing mapping.
+- That the installed fabric-cicd version publishes `Eventstream` items, and that `$items.KQLDatabase...$id` resolves for items created in the same run. If it doesn't, rerun the deploy.
+- That the generated `shortcuts.metadata.json` shape (OneLake target `workspaceId`/`itemId`/`path`) matches what fabric-cicd and the Lakehouse expect. Compare it with a Git-synced Lakehouse that has a manually created shortcut.

@@ -36,8 +36,16 @@
       "SemanticModel",
       "Eventhouse",
       "KQLDatabase",
-      "KQLQueryset"
-    ]
+      "KQLQueryset",
+      "Eventstream"
+    ],
+    "realtime": {
+      "eventHubConnectionId": "",
+      "lakehouseShortcuts": {
+        "enabled": false,
+        "tables": ["AppRequestsRT", "AppTracesRT", "AppExceptionsRT"]
+      }
+    }
   },
 
   "powerPlatform": {

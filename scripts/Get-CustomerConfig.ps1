@@ -35,5 +35,12 @@ $rt = $cfg.azure.realtime
 if ($rt -and $rt.enabled -and $cfg.azure.useExistingAppInsights -and [string]::IsNullOrWhiteSpace($rt.existingLogAnalyticsWorkspaceId)) {
     throw "$path : azure.realtime.existingLogAnalyticsWorkspaceId is required when realtime is enabled with useExistingAppInsights."
 }
+$hasEventstream = @(Get-ChildItem (Join-Path $RepoRoot 'fabric') -Directory -Filter '*.Eventstream' -ErrorAction SilentlyContinue).Count -gt 0
+if ($hasEventstream -and $cfg.fabric.itemTypes -contains 'Eventstream') {
+    $conn = $cfg.fabric.realtime.eventHubConnectionId
+    if ([string]::IsNullOrWhiteSpace($conn) -or $conn -notmatch '^[0-9a-fA-F-]{36}$' -or $conn -match '^0{8}-') {
+        throw "$path : fabric.realtime.eventHubConnectionId must be the GUID of the customer's Event Hub connection when an Eventstream is deployed."
+    }
+}
 
 $cfg
